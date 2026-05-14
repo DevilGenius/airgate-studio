@@ -8,8 +8,9 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../api';
-import type { GenerationTask, ModelInfo, PlatformInfo, UserInfo } from '../api';
+import type { GenerationTask } from '../api';
 import type { GalleryItem, StudioGenerationTask, ImageMode, MediaType } from './types';
+import { getModelConfig, getDefaultModel, MODEL_REGISTRY, type ModelConfig } from './modelConfig';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -30,16 +31,6 @@ function parseMarkdownImages(text: string): Array<{ url: string; alt: string }> 
     results.push({ alt: match[1], url: match[2] });
   }
   return results;
-}
-
-function modelOptionValue(m: ModelInfo): string {
-  return m.platform ? `${m.platform}::${m.id}` : m.id;
-}
-
-function splitModelValue(value: string): { platform: string; modelId: string } {
-  const idx = value.indexOf('::');
-  if (idx === -1) return { platform: '', modelId: value };
-  return { platform: value.slice(0, idx), modelId: value.slice(idx + 2) };
 }
 
 function operationToImageMode(operation: string): ImageMode {
@@ -150,17 +141,13 @@ export interface StudioContextValue {
   imageMode: ImageMode;
   setImageMode: (mode: ImageMode) => void;
 
-  // Models & platforms
-  platforms: PlatformInfo[];
-  models: ModelInfo[];
-  imageModels: ModelInfo[];
-  selectedModel: string;
-  setSelectedModel: (model: string) => void;
-  selectedPlatform: string;
+  // Model config
+  currentModel: ModelConfig;
   selectedModelId: string;
+  setSelectedModelId: (id: string) => void;
+  selectedPlatform: string;
   imageSize: string;
   setImageSize: (size: string) => void;
-  userInfo: UserInfo | null;
 
   // Reference image (for img2img / inpaint)
   referenceImage: string | null;
@@ -206,12 +193,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [mediaType, setMediaType] = useState<MediaType>('image');
   const [imageMode, setImageMode] = useState<ImageMode>('text2img');
 
-  // Models & platforms
-  const [platforms, setPlatforms] = useState<PlatformInfo[]>([]);
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [imageSize, setImageSize] = useState('1024x1024');
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  // Model selection (hardcoded registry)
+  const [selectedModelId, setSelectedModelIdRaw] = useState(getDefaultModel().id);
+  const [imageSize, setImageSize] = useState(getDefaultModel().defaultSize);
 
   // Reference image
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
@@ -225,14 +209,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [previewItem, setPreviewItem] = useState<GalleryItem | null>(null);
 
-  const platformsPromiseRef = useRef<Promise<void> | null>(null);
   const recoveryPromiseRef = useRef<Promise<void> | null>(null);
 
-  // models 已由服务端按 capability=image_generation 过滤，无需二次过滤
-  const imageModels = models;
+  // Derived from hardcoded registry
+  const currentModel = getModelConfig(selectedModelId) ?? getDefaultModel();
+  const selectedPlatform = currentModel.platform;
 
-  // Derived: selected platform + modelId
-  const { platform: selectedPlatform, modelId: selectedModelId } = splitModelValue(selectedModel);
+  const setSelectedModelId = useCallback((id: string) => {
+    setSelectedModelIdRaw(id);
+    const newModel = getModelConfig(id);
+    if (newModel && !newModel.sizes.some(s => s.value === imageSize)) {
+      setImageSize(newModel.defaultSize);
+    }
+  }, [imageSize]);
 
   // ── Initialization ────────────────────────────────────────────────────────
 
@@ -337,20 +326,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!platformsPromiseRef.current) {
-      platformsPromiseRef.current = api.listPlatforms().then(async nextPlatforms => {
-        setPlatforms(nextPlatforms);
-        const modelLists = await Promise.all(
-          nextPlatforms.map(p => api.listModels(p.name, 'image_generation').catch(() => [] as ModelInfo[])),
-        );
-        const allModels = modelLists.flat();
-        setModels(allModels);
-        if (allModels.length > 0) {
-          setSelectedModel(modelOptionValue(allModels[0]));
-        }
-      }).catch(() => {});
-    }
-
     if (!recoveryPromiseRef.current) {
       const controller = new AbortController();
       recoveryPromiseRef.current = recoverTasks(controller.signal);
@@ -538,16 +513,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setMediaType,
     imageMode,
     setImageMode,
-    platforms,
-    models,
-    imageModels,
-    selectedModel,
-    setSelectedModel,
-    selectedPlatform,
+    currentModel,
     selectedModelId,
+    setSelectedModelId,
+    selectedPlatform,
     imageSize,
     setImageSize,
-    userInfo,
     referenceImage,
     setReferenceImage,
     isGenerating,

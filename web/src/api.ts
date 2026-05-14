@@ -61,7 +61,7 @@ export const api = {
     platform: string;
     model: string;
     prompt: string;
-    group_id: number;
+    group_id?: number;
     parameters?: Record<string, unknown>;
     inputs?: Array<{ type: string; role: string; url: string }>;
     mask?: { type: string; role: string; url: string };

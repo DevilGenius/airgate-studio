@@ -1,26 +1,73 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type DragEvent, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cssVar } from '@doudou-start/airgate-theme';
 import { StudioProvider, useStudio } from './StudioContext';
-import { ImageModule } from './image/ImageModule';
 import { GalleryView } from './GalleryView';
 import { studioStyles as ss, studioCSS } from './studioStyles';
+import { SizeSelector } from './SizeSelector';
+import { MODEL_REGISTRY } from './modelConfig';
+import type { ImageMode } from './types';
 
-// ── QuickInput (floating command bar) ────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-function QuickInput() {
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── ComposerBar ─────────────────────────────────────────────────────────────
+
+const MODES: Array<{ mode: ImageMode; label: string }> = [
+  { mode: 'text2img', label: '文生图' },
+  { mode: 'img2img', label: '图生图' },
+  { mode: 'inpaint', label: '局部绘图' },
+  { mode: 'batch', label: '批量' },
+];
+
+const COUNT_OPTIONS = [1, 2, 3, 4];
+
+function ComposerBar() {
   const { t } = useTranslation();
-  const { isGenerating, generate, selectedModelId, imageSize } = useStudio();
-  const [text, setText] = useState('');
+  const {
+    imageMode, setImageMode,
+    currentModel, selectedModelId, setSelectedModelId,
+    imageSize, setImageSize,
+    isGenerating, generate,
+    referenceImage, setReferenceImage,
+  } = useStudio();
+
+  const [prompt, setPrompt] = useState('');
+  const [count, setCount] = useState(1);
+  const [sourceImage, setSourceImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const canSend = text.trim().length > 0 && !isGenerating;
+  const needsSource = imageMode === 'img2img' || imageMode === 'inpaint';
+  const activeSource = sourceImage ?? referenceImage;
+  const canSend = prompt.trim().length > 0 && !isGenerating && (!needsSource || activeSource !== null);
 
   const handleSend = () => {
-    const trimmed = text.trim();
+    const trimmed = prompt.trim();
     if (!trimmed || isGenerating) return;
-    void generate(trimmed);
-    setText('');
+
+    if (imageMode === 'batch') {
+      const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      for (const line of lines) {
+        void generate(line, { count: 1 });
+      }
+    } else if (imageMode === 'text2img') {
+      for (let i = 0; i < count; i++) {
+        void generate(trimmed, { count: 1 });
+      }
+    } else {
+      void generate(trimmed, { sourceImage: activeSource ?? undefined });
+    }
+    setPrompt('');
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -30,89 +77,351 @@ function QuickInput() {
     }
   };
 
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    try {
+      const dataUrl = await readFileAsDataURL(file);
+      setSourceImage(dataUrl);
+    } catch { /* ignore */ }
+  };
+
+  const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void handleFile(file);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => setIsDragging(false);
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void handleFile(file);
+  };
+
+  const placeholders: Record<ImageMode, string> = {
+    text2img: '描述你想生成的图片...',
+    img2img: '描述你想要的变化...',
+    inpaint: '描述要修改的区域...',
+    batch: '每行一个提示词，批量生成...',
+  };
+
   return (
-    <div style={ss.quickInput} className="studio-quick-input">
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={quickStyles.meta}>
-          {selectedModelId && (
-            <span style={quickStyles.metaBadge}>{selectedModelId}</span>
-          )}
-          {imageSize && imageSize !== 'auto' && (
-            <span style={quickStyles.metaBadge}>{imageSize}</span>
-          )}
-          <span style={quickStyles.metaHint}>
-            {t('playground.studio_quick_hint', { defaultValue: 'Enter 发送 · Shift+Enter 换行' })}
-          </span>
-        </div>
-        <textarea
-          ref={textareaRef}
-          style={ss.quickInputTextarea}
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t('playground.studio_quick_placeholder', { defaultValue: '快速生成一张图片...' })}
-          rows={1}
-          disabled={isGenerating}
-        />
+    <div style={c.card} className="studio-quick-input">
+      {/* Mode tabs */}
+      <div style={c.tabs}>
+        {MODES.map(m => (
+          <button
+            key={m.mode}
+            type="button"
+            style={imageMode === m.mode ? c.tabActive : c.tab}
+            className="studio-mode-tab"
+            onClick={() => setImageMode(m.mode)}
+          >
+            {t(`playground.studio_mode_${m.mode}`, { defaultValue: m.label })}
+          </button>
+        ))}
       </div>
-      <button
-        type="button"
-        style={{
-          ...ss.quickInputSendBtn,
-          ...(canSend ? {} : quickStyles.sendBtnDisabled),
-        }}
-        className={canSend ? 'studio-send-btn' : ''}
-        onClick={handleSend}
-        disabled={!canSend}
-        title={t('playground.studio_generate', { defaultValue: '生成' })}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 19V5" />
-          <path d="M5 12l7-7 7 7" />
-        </svg>
-      </button>
+
+      {/* Source image area (img2img / inpaint) */}
+      {needsSource && (
+        <div style={c.sourceRow}>
+          {activeSource ? (
+            <div style={c.sourceThumb}>
+              <img src={activeSource} alt="source" style={c.sourceImg} />
+              <button
+                type="button"
+                style={c.sourceRemove}
+                onClick={() => { setSourceImage(null); setReferenceImage(null); }}
+              >×</button>
+            </div>
+          ) : (
+            <div
+              style={isDragging ? { ...c.sourceUpload, borderColor: cssVar('primary'), background: cssVar('primarySubtle') } : c.sourceUpload}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.4}>
+                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
+              </svg>
+              <span>{t('playground.studio_upload_short', { defaultValue: '上传参考图' })}</span>
+            </div>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileInput} />
+        </div>
+      )}
+
+      {/* Prompt textarea */}
+      <textarea
+        ref={textareaRef}
+        style={c.textarea}
+        value={prompt}
+        onChange={e => setPrompt(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={t('playground.studio_quick_placeholder', { defaultValue: placeholders[imageMode] })}
+        rows={imageMode === 'batch' ? 4 : 2}
+        disabled={isGenerating}
+      />
+
+      {/* Toolbar row */}
+      <div style={c.toolbar}>
+        <div style={c.toolbarLeft}>
+          <span style={c.modelBadge}>
+            <span style={c.modelDot} />
+            {currentModel.name}
+          </span>
+          <div style={c.sizePicker}>
+            <SizeSelector value={imageSize} sizes={currentModel.sizes} onChange={setImageSize} upward compact />
+          </div>
+          {imageMode === 'text2img' && (
+            <div style={c.countGroup}>
+              {COUNT_OPTIONS.map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  style={count === n ? c.countBtnActive : c.countBtn}
+                  onClick={() => setCount(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
+          {imageMode === 'batch' && (
+            <span style={c.batchHint}>
+              {prompt.split('\n').filter(l => l.trim()).length || 0} 条
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          style={{
+            ...c.sendBtn,
+            ...(canSend ? {} : c.sendBtnDisabled),
+          }}
+          className={canSend ? 'studio-send-btn' : ''}
+          onClick={handleSend}
+          disabled={!canSend}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V5" />
+            <path d="M5 12l7-7 7 7" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
 
-const backBtnStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 32,
-  height: 32,
-  borderRadius: 8,
-  border: 'none',
-  background: 'transparent',
-  color: cssVar('textSecondary'),
-  cursor: 'pointer',
-  textDecoration: 'none',
-  flexShrink: 0,
-  transition: 'color 0.15s, background 0.15s',
-};
+// ── ComposerBar styles ──────────────────────────────────────────────────────
 
-const quickStyles: Record<string, CSSProperties> = {
-  meta: {
+const c: Record<string, CSSProperties> = {
+  card: {
+    width: '100%',
+    maxWidth: 720,
     display: 'flex',
-    gap: 6,
-    alignItems: 'center',
-    fontSize: 10,
-    color: cssVar('textTertiary'),
+    flexDirection: 'column',
+    gap: 0,
+    padding: '6px 6px 10px',
+    borderRadius: 20,
+    background: cssVar('bgElevated'),
+    border: `1px solid ${cssVar('glassBorder')}`,
+    boxShadow: '0 8px 48px rgba(0, 0, 0, 0.4), 0 2px 12px rgba(0, 0, 0, 0.2)',
+    transition: 'box-shadow 0.3s',
   },
-  metaBadge: {
-    padding: '2px 7px',
-    borderRadius: 5,
+  tabs: {
+    display: 'flex',
+    gap: 2,
+    padding: '4px 8px',
+  },
+  tab: {
+    padding: '5px 12px',
+    border: 'none',
+    borderRadius: 8,
+    background: 'transparent',
+    color: cssVar('textTertiary'),
+    cursor: 'pointer',
+    fontSize: 12,
+    fontFamily: 'inherit',
+    fontWeight: 500,
+    transition: 'all 0.15s',
+    whiteSpace: 'nowrap',
+  },
+  tabActive: {
+    padding: '5px 12px',
+    border: 'none',
+    borderRadius: 8,
     background: cssVar('bgHover'),
-    fontSize: 10,
+    color: cssVar('text'),
+    cursor: 'pointer',
+    fontSize: 12,
+    fontFamily: 'inherit',
+    fontWeight: 700,
+    transition: 'all 0.15s',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  },
+  sourceRow: {
+    padding: '6px 12px',
+  },
+  sourceThumb: {
+    position: 'relative',
+    display: 'inline-flex',
+    borderRadius: 10,
+    overflow: 'hidden',
+    border: `1px solid ${cssVar('borderSubtle')}`,
+  },
+  sourceImg: {
+    width: 80,
+    height: 60,
+    objectFit: 'cover',
+    display: 'block',
+  },
+  sourceRemove: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 18,
+    height: 18,
+    border: 'none',
+    borderRadius: '50%',
+    background: 'rgba(0,0,0,0.6)',
+    color: '#fff',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 12,
+    padding: 0,
+    lineHeight: 1,
+  },
+  sourceUpload: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 14px',
+    borderRadius: 10,
+    border: `1.5px dashed ${cssVar('borderSubtle')}`,
+    background: 'transparent',
+    color: cssVar('textTertiary'),
+    fontSize: 12,
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  },
+  textarea: {
+    width: '100%',
+    minHeight: 40,
+    maxHeight: 160,
+    padding: '8px 14px',
+    border: 'none',
+    background: 'transparent',
+    color: cssVar('text'),
+    fontSize: 14,
+    fontFamily: 'inherit',
+    resize: 'none',
+    outline: 'none',
+    lineHeight: 1.6,
+    boxSizing: 'border-box',
+  },
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: '2px 8px 0',
+  },
+  toolbarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+  },
+  modelBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '4px 10px',
+    borderRadius: 7,
+    background: cssVar('bgHover'),
     color: cssVar('textSecondary'),
+    fontSize: 11,
     fontFamily: cssVar('fontMono'),
     fontWeight: 600,
-    letterSpacing: '0.02em',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
-  metaHint: {
-    opacity: 0.6,
+  modelDot: {
+    width: 5,
+    height: 5,
+    borderRadius: '50%',
+    background: '#4ade80',
+    flexShrink: 0,
+    boxShadow: '0 0 5px rgba(74, 222, 128, 0.4)',
+  },
+  sizePicker: {
+    flexShrink: 0,
+    width: 180,
+  },
+  countGroup: {
+    display: 'flex',
+    gap: 2,
+    flexShrink: 0,
+  },
+  countBtn: {
+    width: 26,
+    height: 26,
+    border: `1px solid ${cssVar('borderSubtle')}`,
+    borderRadius: 6,
+    background: 'transparent',
+    color: cssVar('textSecondary'),
+    cursor: 'pointer',
+    fontSize: 11,
+    fontFamily: 'inherit',
+    fontVariantNumeric: 'tabular-nums',
+    transition: 'all 0.15s',
+    padding: 0,
+  },
+  countBtnActive: {
+    width: 26,
+    height: 26,
+    border: `1px solid color-mix(in oklab, ${cssVar('primary')} 40%, transparent)`,
+    borderRadius: 6,
+    background: cssVar('primarySubtle'),
+    color: cssVar('text'),
+    cursor: 'pointer',
+    fontSize: 11,
+    fontFamily: 'inherit',
+    fontWeight: 700,
+    fontVariantNumeric: 'tabular-nums',
+    transition: 'all 0.15s',
+    padding: 0,
+  },
+  batchHint: {
+    fontSize: 11,
+    color: cssVar('textTertiary'),
     fontFamily: cssVar('fontMono'),
-    letterSpacing: '0.02em',
+    whiteSpace: 'nowrap',
+  },
+  sendBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 34,
+    height: 34,
+    border: 'none',
+    borderRadius: 10,
+    background: cssVar('primary'),
+    color: cssVar('primaryForeground'),
+    cursor: 'pointer',
+    flexShrink: 0,
+    padding: 0,
+    transition: 'all 0.2s',
+    boxShadow: `0 0 12px ${cssVar('primaryGlow')}`,
   },
   sendBtnDisabled: {
     background: cssVar('bgHover'),
@@ -123,268 +432,132 @@ const quickStyles: Record<string, CSSProperties> = {
   },
 };
 
-// ── Mobile styles ────────────────────────────────────────────────────────────
+// ── Landing ─────────────────────────────────────────────────────────────────
 
-const mobileStyles: Record<string, CSSProperties> = {
-  layout: {
+const landing: Record<string, CSSProperties> = {
+  wrapper: {
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
     background: cssVar('bgDeep'),
-    color: cssVar('text'),
-    fontFamily: cssVar('fontSans'),
-  },
-  topBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 14px',
-    background: cssVar('glass'),
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderBottom: `1px solid ${cssVar('glassBorder')}`,
-    overflowX: 'auto',
-    flexShrink: 0,
-  },
-  topBarPill: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '7px 14px',
-    border: 'none',
-    borderRadius: 10,
-    background: 'transparent',
-    color: cssVar('textSecondary'),
-    cursor: 'pointer',
-    fontSize: 12,
-    fontFamily: 'inherit',
-    fontWeight: 500,
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-    transition: 'all 0.18s',
-  },
-  topBarPillActive: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '7px 14px',
-    border: 'none',
-    borderRadius: 10,
-    background: cssVar('primarySubtle'),
-    color: cssVar('text'),
-    cursor: 'pointer',
-    fontSize: 12,
-    fontFamily: 'inherit',
-    fontWeight: 700,
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-    transition: 'all 0.18s',
-  },
-  topBarPillDisabled: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '7px 14px',
-    border: 'none',
-    borderRadius: 10,
-    background: 'transparent',
-    color: cssVar('textTertiary'),
-    cursor: 'not-allowed',
-    fontSize: 12,
-    fontFamily: 'inherit',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-    opacity: 0.35,
-  },
-  panelSection: {
-    padding: '14px',
-    borderBottom: `1px solid ${cssVar('borderSubtle')}`,
-    background: cssVar('glass'),
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    overflowY: 'auto',
-    maxHeight: 340,
-    flexShrink: 0,
-  },
-  panelToggle: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '10px 14px',
-    background: cssVar('bg'),
-    borderBottom: `1px solid ${cssVar('borderSubtle')}`,
-    cursor: 'pointer',
-    border: 'none',
-    width: '100%',
-    color: cssVar('textSecondary'),
-    fontSize: 11,
-    fontFamily: cssVar('fontMono'),
-    fontWeight: 700,
-    flexShrink: 0,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-  },
-  galleryArea: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: 0,
-    minHeight: 0,
     overflow: 'hidden',
   },
-};
-
-// ── Desktop sidebar styles ──────────────────────────────────────────────────
-
-const desktopSidebar: Record<string, CSSProperties> = {
-  mediaTypeGroup: {
+  center: {
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
-    padding: '4px 12px 8px',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    padding: '40px 32px 0',
+    userSelect: 'none',
   },
-  mediaTypeBtn: {
+  iconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    background: 'radial-gradient(circle at 40% 35%, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 70%, transparent 100%)',
+    border: '1px solid rgba(255,255,255,0.06)',
     display: 'flex',
     alignItems: 'center',
-    gap: 9,
-    width: '100%',
-    padding: '9px 12px',
-    border: 'none',
-    borderRadius: 10,
-    background: 'transparent',
-    color: cssVar('textSecondary'),
-    cursor: 'pointer',
-    fontSize: 13,
-    fontFamily: 'inherit',
-    textAlign: 'left',
-    transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+    justifyContent: 'center',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
+    marginBottom: 4,
   },
-  mediaTypeBtnActive: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 9,
-    width: '100%',
-    padding: '9px 12px',
-    border: 'none',
-    borderRadius: 10,
-    background: cssVar('primarySubtle'),
-    color: cssVar('text'),
-    cursor: 'pointer',
-    fontSize: 13,
-    fontFamily: 'inherit',
-    fontWeight: 600,
-    textAlign: 'left',
-    transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
-    boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${cssVar('primary')} 15%, transparent)`,
-  },
-  mediaTypeBtnDisabled: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 9,
-    width: '100%',
-    padding: '9px 12px',
-    border: 'none',
-    borderRadius: 10,
-    background: 'transparent',
-    color: cssVar('textTertiary'),
-    cursor: 'not-allowed',
-    fontSize: 13,
-    fontFamily: 'inherit',
-    textAlign: 'left',
-    opacity: 0.35,
-  },
-  comingSoonBadge: {
-    marginLeft: 'auto',
-    fontSize: 9,
+  title: {
+    fontSize: 22,
     fontWeight: 700,
-    padding: '2px 7px',
-    borderRadius: 5,
-    background: cssVar('bgHover'),
-    color: cssVar('textTertiary'),
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-    fontFamily: cssVar('fontMono'),
+    color: cssVar('text'),
+    letterSpacing: '-0.02em',
   },
-  sidebarScroll: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '0 4px 20px',
+  subtitle: {
+    fontSize: 13,
+    color: cssVar('textTertiary'),
+    opacity: 0.5,
+  },
+  bottom: {
+    flexShrink: 0,
+    display: 'flex',
+    justifyContent: 'center',
+    padding: '24px 24px 32px',
   },
 };
 
-// ── StudioLayout ─────────────────────────────────────────────────────────────
+// ── Gallery mode ────────────────────────────────────────────────────────────
+
+const galleryLayout: Record<string, CSSProperties> = {
+  wrapper: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    background: cssVar('bgDeep'),
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  composerWrap: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    display: 'flex',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+};
+
+// ── Back button ─────────────────────────────────────────────────────────────
+
+const backBtnStyle: CSSProperties = {
+  position: 'absolute',
+  top: 14,
+  left: 14,
+  zIndex: 5,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  border: `1px solid ${cssVar('glassBorder')}`,
+  background: cssVar('glass'),
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  color: cssVar('textSecondary'),
+  cursor: 'pointer',
+  textDecoration: 'none',
+  transition: 'all 0.15s',
+};
+
+// ── StudioLayout ────────────────────────────────────────────────────────────
 
 function StudioLayout() {
-  const { t } = useTranslation();
-  const { mediaType, setMediaType } = useStudio();
+  const { gallery, tasks } = useStudio();
 
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
-  const [panelExpanded, setPanelExpanded] = useState(true);
+  const visibleTasks = tasks.filter(tk => tk.status !== 'completed');
+  const isEmpty = gallery.length === 0 && visibleTasks.length === 0;
 
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 768px)');
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  if (isMobile) {
+  if (isEmpty) {
     return (
-      <div style={mobileStyles.layout}>
+      <div style={{ ...ss.layout, flexDirection: 'column' }}>
         <style>{studioCSS}</style>
-
-        <div style={mobileStyles.topBar}>
-          <a href="/" style={backBtnStyle} title="返回控制台">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+        <a href="/" style={backBtnStyle} title="返回控制台">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <div style={landing.center}>
+          <div style={landing.iconWrap}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.2 }}>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="M21 15l-5-5L5 21" />
             </svg>
-          </a>
-          <button
-            type="button"
-            style={mediaType === 'image' ? mobileStyles.topBarPillActive : mobileStyles.topBarPill}
-            onClick={() => setMediaType('image')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
-            </svg>
-            {t('playground.studio_media_image', { defaultValue: '图片' })}
-          </button>
-          <button type="button" style={mobileStyles.topBarPillDisabled} disabled>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" />
-            </svg>
-            {t('playground.studio_media_video', { defaultValue: '视频' })}
-          </button>
-          <button type="button" style={mobileStyles.topBarPillDisabled} disabled>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
-            </svg>
-            {t('playground.studio_media_music', { defaultValue: '音乐' })}
-          </button>
-        </div>
-
-        <button
-          type="button"
-          style={mobileStyles.panelToggle}
-          onClick={() => setPanelExpanded(!panelExpanded)}
-        >
-          <span>{t('playground.studio_settings', { defaultValue: '设置面板' })}</span>
-          <span style={{ fontSize: 10, transition: 'transform 0.25s', transform: panelExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-            &#9662;
-          </span>
-        </button>
-
-        {panelExpanded && (
-          <div style={mobileStyles.panelSection}>
-            {mediaType === 'image' && <ImageModule />}
           </div>
-        )}
-
-        <div style={mobileStyles.galleryArea}>
-          <GalleryView />
-          <QuickInput />
+          <div style={landing.title}>创作中心</div>
+          <div style={landing.subtitle}>输入提示词，AI 为你生成图片</div>
+        </div>
+        <div style={landing.bottom}>
+          <ComposerBar />
         </div>
       </div>
     );
@@ -393,58 +566,15 @@ function StudioLayout() {
   return (
     <div style={ss.layout}>
       <style>{studioCSS}</style>
-
-      {/* Left: gallery */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+      <a href="/" style={backBtnStyle} title="返回控制台">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+        </svg>
+      </a>
+      <div style={galleryLayout.wrapper}>
         <GalleryView />
-        <QuickInput />
-      </div>
-
-      {/* Right: sidebar */}
-      <div style={ss.sidebar} className="studio-sidebar">
-        <div style={ss.sidebarHeader}>
-          <a href="/" style={backBtnStyle} title="返回控制台">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
-            </svg>
-          </a>
-          <span>{t('playground.studio_title', { defaultValue: '创作中心' })}</span>
-        </div>
-
-        <div style={desktopSidebar.sidebarScroll} className="studio-sidebar">
-          {/* Media type selector */}
-          <div style={desktopSidebar.mediaTypeGroup}>
-            <button
-              type="button"
-              style={mediaType === 'image' ? desktopSidebar.mediaTypeBtnActive : desktopSidebar.mediaTypeBtn}
-              className="studio-media-btn"
-              onClick={() => setMediaType('image')}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
-              </svg>
-              {t('playground.studio_media_image', { defaultValue: '图片' })}
-            </button>
-            <button type="button" style={desktopSidebar.mediaTypeBtnDisabled} disabled>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" />
-              </svg>
-              {t('playground.studio_media_video', { defaultValue: '视频' })}
-              <span style={desktopSidebar.comingSoonBadge}>{t('playground.studio_coming_soon', { defaultValue: '即将推出' })}</span>
-            </button>
-            <button type="button" style={desktopSidebar.mediaTypeBtnDisabled} disabled>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
-              </svg>
-              {t('playground.studio_media_music', { defaultValue: '音乐' })}
-              <span style={desktopSidebar.comingSoonBadge}>{t('playground.studio_coming_soon', { defaultValue: '即将推出' })}</span>
-            </button>
-          </div>
-
-          <div style={ss.sectionDivider} />
-
-          {/* Mode-specific panel */}
-          {mediaType === 'image' && <ImageModule />}
+        <div style={galleryLayout.composerWrap}>
+          <ComposerBar />
         </div>
       </div>
     </div>

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { cssVar } from '@doudou-start/airgate-theme';
 import { useStudio } from '../StudioContext';
 import { CustomSelect } from '../CustomSelect';
+import { SizeSelector } from '../SizeSelector';
+import { MODEL_REGISTRY } from '../modelConfig';
 import { studioStyles as ss } from '../studioStyles';
 
 const local: Record<string, CSSProperties> = {
@@ -43,17 +45,27 @@ const local: Record<string, CSSProperties> = {
   },
 };
 
-const SIZE_OPTIONS = [
-  { value: 'auto',      label: 'Auto' },
-  { value: '1024x1024', label: '1024×1024' },
-  { value: '1536x1024', label: '1536×1024' },
-  { value: '1024x1536', label: '1024×1536' },
-  { value: '2048x2048', label: '2048×2048' },
-  { value: '2048x1152', label: '2048×1152' },
-  { value: '1152x2048', label: '1152×2048' },
-  { value: '3840x2160', label: '3840×2160 (4K)' },
-  { value: '2160x3840', label: '2160×3840 (4K)' },
-];
+const modelBadge: CSSProperties = {
+  padding: '9px 14px',
+  borderRadius: 10,
+  background: cssVar('bgDeep'),
+  border: `1px solid ${cssVar('borderSubtle')}`,
+  color: cssVar('text'),
+  fontSize: 13,
+  fontFamily: 'inherit',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+};
+
+const modelDot: CSSProperties = {
+  width: 6,
+  height: 6,
+  borderRadius: '50%',
+  background: '#4ade80',
+  flexShrink: 0,
+  boxShadow: '0 0 6px rgba(74, 222, 128, 0.4)',
+};
 
 function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -67,11 +79,11 @@ function readFileAsDataURL(file: File): Promise<string> {
 export function ImageToImagePanel() {
   const { t } = useTranslation();
   const {
-    selectedModel,
-    setSelectedModel,
+    currentModel,
+    selectedModelId,
+    setSelectedModelId,
     imageSize,
     setImageSize,
-    imageModels,
     isGenerating,
     generate,
   } = useStudio();
@@ -180,22 +192,24 @@ export function ImageToImagePanel() {
         <label style={ss.formLabel}>
           {t('playground.studio_model', { defaultValue: '模型' })}
         </label>
-        <CustomSelect
-          value={selectedModel}
-          options={imageModels.length === 0
-            ? [{ value: '', label: t('playground.studio_no_models', { defaultValue: '暂无可用模型' }) }]
-            : imageModels.map(m => ({ value: m.platform ? `${m.platform}::${m.id}` : m.id, label: m.name || m.id }))}
-          onChange={setSelectedModel}
-        />
+        {MODEL_REGISTRY.length === 1 ? (
+          <div style={modelBadge}><span style={modelDot} />{currentModel.name}</div>
+        ) : (
+          <CustomSelect
+            value={selectedModelId}
+            options={MODEL_REGISTRY.map(m => ({ value: m.id, label: m.name }))}
+            onChange={setSelectedModelId}
+          />
+        )}
       </div>
 
       <div style={ss.formRow}>
         <label style={ss.formLabel}>
           {t('playground.studio_size', { defaultValue: '尺寸' })}
         </label>
-        <CustomSelect
+        <SizeSelector
           value={imageSize}
-          options={SIZE_OPTIONS}
+          sizes={currentModel.sizes}
           onChange={setImageSize}
         />
       </div>

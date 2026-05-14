@@ -266,39 +266,80 @@ function PreviewOverlay() {
 // ── EmptyState ──────────────────────────────────────────────────────────────
 
 const emptyStyles: Record<string, CSSProperties> = {
+  wrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    height: '100%',
+    minHeight: 400,
+    userSelect: 'none',
+    paddingBottom: 80,
+  },
   iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    background: 'rgba(255, 255, 255, 0.03)',
+    width: 120,
+    height: 120,
+    borderRadius: 32,
+    background: `radial-gradient(circle at 40% 35%, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 70%, transparent 100%)`,
     border: '1px solid rgba(255, 255, 255, 0.06)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    position: 'relative',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.04)',
   },
   title: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 600,
     color: cssVar('textSecondary'),
     letterSpacing: '-0.01em',
   },
   hint: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
     color: cssVar('textTertiary'),
-    opacity: 0.6,
+    opacity: 0.5,
     fontFamily: cssVar('fontMono'),
     letterSpacing: '0.02em',
+  },
+  shortcutRow: {
+    display: 'flex',
+    gap: 16,
+    marginTop: 8,
+  },
+  shortcutItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 11,
+    color: cssVar('textTertiary'),
+    opacity: 0.4,
+    fontFamily: cssVar('fontMono'),
+  },
+  kbd: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 20,
+    height: 20,
+    padding: '0 5px',
+    borderRadius: 5,
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    fontSize: 10,
+    fontWeight: 600,
+    fontFamily: cssVar('fontMono'),
+    color: cssVar('textTertiary'),
   },
 };
 
 function EmptyState() {
   const { t } = useTranslation();
   return (
-    <div style={ss.galleryEmpty}>
+    <div style={emptyStyles.wrapper}>
       <div style={emptyStyles.iconWrap}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity={0.35}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.2 }}>
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <circle cx="8.5" cy="8.5" r="1.5" />
           <path d="M21 15l-5-5L5 21" />
@@ -306,7 +347,19 @@ function EmptyState() {
       </div>
       <div style={emptyStyles.title}>{t('playground.studio_gallery_empty', { defaultValue: '还没有生成的图片' })}</div>
       <div style={emptyStyles.hint}>
-        {t('playground.studio_gallery_empty_hint', { defaultValue: '输入提示词开始创作' })}
+        {t('playground.studio_gallery_empty_hint', { defaultValue: '在下方输入框输入提示词，开始创作' })}
+      </div>
+      <div style={emptyStyles.shortcutRow}>
+        <div style={emptyStyles.shortcutItem}>
+          <span style={emptyStyles.kbd}>Enter</span>
+          <span>{t('playground.studio_shortcut_send', { defaultValue: '发送' })}</span>
+        </div>
+        <div style={emptyStyles.shortcutItem}>
+          <span style={emptyStyles.kbd}>Shift</span>
+          <span>+</span>
+          <span style={emptyStyles.kbd}>Enter</span>
+          <span>{t('playground.studio_shortcut_newline', { defaultValue: '换行' })}</span>
+        </div>
       </div>
     </div>
   );
