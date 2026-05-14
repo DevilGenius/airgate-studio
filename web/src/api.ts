@@ -36,15 +36,22 @@ export interface GenerationTask {
 }
 
 export interface PlatformInfo {
-  id: string;
   name: string;
+  display_name: string;
 }
 
 export interface ModelInfo {
   id: string;
-  name?: string;
+  name: string;
   platform?: string;
+  image_only?: boolean;
   capabilities?: string[];
+}
+
+export interface UserInfo {
+  user_id: number;
+  username: string;
+  role: string;
 }
 
 export const api = {

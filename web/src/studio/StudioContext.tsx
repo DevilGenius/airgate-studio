@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api } from '../../api';
-import type { GenerationTask, ModelInfo, PlatformInfo, UserInfo } from '../../api';
+import { api } from '../api';
+import type { GenerationTask, ModelInfo, PlatformInfo, UserInfo } from '../api';
 import type { GalleryItem, StudioGenerationTask, ImageMode, MediaType } from './types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
