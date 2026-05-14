@@ -4,7 +4,7 @@ import sdk "github.com/DouDOU-start/airgate-sdk/sdkgo"
 
 const (
 	PluginID   = "airgate-studio"
-	PluginName = "创作工作台"
+	PluginName = "创作中心"
 )
 
 func buildPluginInfo() sdk.PluginInfo {
@@ -24,7 +24,7 @@ func buildPluginInfo() sdk.PluginInfo {
 		FrontendPages: []sdk.FrontendPage{
 			{
 				Path:     "/studio",
-				Title:    "创作工作台",
+				Title:    "创作中心",
 				Icon:     "palette",
 				Audience: "all",
 			},

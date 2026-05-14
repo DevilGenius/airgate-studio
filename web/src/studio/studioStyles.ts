@@ -35,7 +35,7 @@ export const studioStyles: Record<string, CSSProperties> = {
   },
 
   sidebarHeader: {
-    padding: '20px 20px 6px',
+    padding: '14px 14px 6px 14px',
     fontSize: 10,
     fontWeight: 800,
     letterSpacing: '0.12em',
@@ -43,6 +43,9 @@ export const studioStyles: Record<string, CSSProperties> = {
     color: cssVar('textTertiary'),
     fontFamily: cssVar('fontMono'),
     userSelect: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
   },
 
   // ── Media type selector ───────────────────────────────────────────────────

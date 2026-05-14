@@ -75,6 +75,22 @@ function QuickInput() {
   );
 }
 
+const backBtnStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 8,
+  border: 'none',
+  background: 'transparent',
+  color: cssVar('textSecondary'),
+  cursor: 'pointer',
+  textDecoration: 'none',
+  flexShrink: 0,
+  transition: 'color 0.15s, background 0.15s',
+};
+
 const quickStyles: Record<string, CSSProperties> = {
   meta: {
     display: 'flex',
@@ -320,6 +336,11 @@ function StudioLayout() {
         <style>{studioCSS}</style>
 
         <div style={mobileStyles.topBar}>
+          <a href="/" style={backBtnStyle} title="返回控制台">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+            </svg>
+          </a>
           <button
             type="button"
             style={mediaType === 'image' ? mobileStyles.topBarPillActive : mobileStyles.topBarPill}
@@ -382,7 +403,12 @@ function StudioLayout() {
       {/* Right: sidebar */}
       <div style={ss.sidebar} className="studio-sidebar">
         <div style={ss.sidebarHeader}>
-          {t('playground.studio_title', { defaultValue: '创作中心' })}
+          <a href="/" style={backBtnStyle} title="返回控制台">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+            </svg>
+          </a>
+          <span>{t('playground.studio_title', { defaultValue: '创作中心' })}</span>
         </div>
 
         <div style={desktopSidebar.sidebarScroll} className="studio-sidebar">
