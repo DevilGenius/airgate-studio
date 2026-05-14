@@ -1,153 +1,125 @@
 package studio
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
+
+	sdk "github.com/DouDOU-start/airgate-sdk/sdkgo"
 )
 
-func routeRequest(p *StudioPlugin, method, path string, body []byte) (int, http.Header, []byte, error) {
-	ctx := context.Background()
-	headers := http.Header{"Content-Type": []string{"application/json"}}
-
-	path = strings.TrimRight(path, "/")
-
-	switch {
-	case method == http.MethodPost && path == "/generation-tasks":
-		return p.handleCreateGenerationTask(ctx, body, headers)
-
-	case method == http.MethodGet && path == "/generation-tasks":
-		return p.handleListGenerationTasks(ctx, body, headers)
-
-	case method == http.MethodGet && strings.HasPrefix(path, "/generation-tasks/"):
-		taskIDStr := strings.TrimPrefix(path, "/generation-tasks/")
-		return p.handleGetGenerationTask(ctx, taskIDStr, headers)
-
-	case method == http.MethodGet && path == "/platforms":
-		return p.handleListPlatforms(ctx, headers)
-
-	case method == http.MethodGet && path == "/models":
-		return p.handleListModels(ctx, body, headers)
-
-	default:
-		return http.StatusNotFound, headers, jsonError("not found"), nil
-	}
+func registerRoutes(p *StudioPlugin, r sdk.RouteRegistrar) {
+	r.Handle(http.MethodPost, "/generation-tasks", p.handleCreateGenerationTask)
+	r.Handle(http.MethodGet, "/generation-tasks", p.handleListGenerationTasks)
+	r.Handle(http.MethodGet, "/generation-tasks/", p.handleGetGenerationTask)
+	r.Handle(http.MethodGet, "/platforms", p.handleListPlatforms)
+	r.Handle(http.MethodGet, "/models", p.handleListModels)
 }
 
-func (p *StudioPlugin) handleCreateGenerationTask(ctx context.Context, body []byte, headers http.Header) (int, http.Header, []byte, error) {
+func (p *StudioPlugin) handleCreateGenerationTask(w http.ResponseWriter, r *http.Request) {
 	var req createGenerationTaskRequest
-	if err := json.Unmarshal(body, &req); err != nil {
-		return http.StatusBadRequest, headers, jsonError("invalid request body"), nil
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
 	}
 	normalizeGenerationRequest(&req)
 
 	if req.Prompt == "" {
-		return http.StatusBadRequest, headers, jsonError("prompt is required"), nil
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "prompt is required"})
+		return
 	}
 	if req.Model == "" {
-		return http.StatusBadRequest, headers, jsonError("model is required"), nil
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "model is required"})
+		return
 	}
 	if req.GroupID <= 0 {
-		return http.StatusBadRequest, headers, jsonError("group_id is required"), nil
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "group_id is required"})
+		return
 	}
+
+	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
 
 	taskType := resolveTaskType(req.Kind, req.Operation)
 	input := buildTaskInput(req)
 	attributes := buildTaskAttributes(req)
 
-	task, err := hostCreateTask(ctx, p.host, openAIPluginID, taskType, 0, input, attributes)
+	task, err := hostCreateTask(r.Context(), p.host, openAIPluginID, taskType, userID, input, attributes)
 	if err != nil {
 		p.logger.Error("create_generation_task_failed", "error", err)
-		return http.StatusInternalServerError, headers, jsonError("创建任务失败: "+err.Error()), nil
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "创建任务失败: " + err.Error()})
+		return
 	}
 
-	resp := buildGenerationTaskResponse(task)
-	respBody, _ := json.Marshal(resp)
-	return http.StatusAccepted, headers, respBody, nil
+	writeJSON(w, http.StatusAccepted, buildGenerationTaskResponse(task))
 }
 
-func (p *StudioPlugin) handleGetGenerationTask(ctx context.Context, taskIDStr string, headers http.Header) (int, http.Header, []byte, error) {
+func (p *StudioPlugin) handleGetGenerationTask(w http.ResponseWriter, r *http.Request) {
+	taskIDStr := strings.TrimPrefix(r.URL.Path, "/generation-tasks/")
 	taskID, err := strconv.ParseInt(taskIDStr, 10, 64)
 	if err != nil || taskID <= 0 {
-		return http.StatusBadRequest, headers, jsonError("invalid task_id"), nil
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid task_id"})
+		return
 	}
 
-	task, err := hostGetTask(ctx, p.host, 0, taskID)
+	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
+	task, err := hostGetTask(r.Context(), p.host, userID, taskID)
 	if err != nil {
-		return http.StatusInternalServerError, headers, jsonError("查询任务失败: "+err.Error()), nil
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "查询任务失败: " + err.Error()})
+		return
 	}
 
-	resp := buildGenerationTaskResponse(task)
-	respBody, _ := json.Marshal(resp)
-	return http.StatusOK, headers, respBody, nil
+	writeJSON(w, http.StatusOK, buildGenerationTaskResponse(task))
 }
 
-func (p *StudioPlugin) handleListGenerationTasks(ctx context.Context, body []byte, headers http.Header) (int, http.Header, []byte, error) {
-	limit, offset, status := 20, 0, ""
-	var params struct {
-		Limit  int    `json:"limit"`
-		Offset int    `json:"offset"`
-		Status string `json:"status"`
-	}
-	if len(body) > 0 {
-		_ = json.Unmarshal(body, &params)
-		if params.Limit > 0 && params.Limit <= 100 {
-			limit = params.Limit
-		}
-		if params.Offset > 0 {
-			offset = params.Offset
-		}
-		status = params.Status
-	}
+func (p *StudioPlugin) handleListGenerationTasks(w http.ResponseWriter, r *http.Request) {
+	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
 
-	result, err := hostListTasks(ctx, p.host, 0, "", status, limit, offset)
+	limit := 20
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 100 {
+		limit = v
+	}
+	offset := 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = v
+	}
+	status := r.URL.Query().Get("status")
+
+	result, err := hostListTasks(r.Context(), p.host, userID, "", status, limit, offset)
 	if err != nil {
-		return http.StatusInternalServerError, headers, jsonError("查询任务列表失败: "+err.Error()), nil
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "查询任务列表失败: " + err.Error()})
+		return
 	}
 
 	tasks := make([]map[string]interface{}, 0, len(result.Tasks))
 	for _, t := range result.Tasks {
 		tasks = append(tasks, buildGenerationTaskResponse(t))
 	}
-
-	resp := map[string]interface{}{"tasks": tasks, "total": result.Total}
-	respBody, _ := json.Marshal(resp)
-	return http.StatusOK, headers, respBody, nil
+	writeJSON(w, http.StatusOK, map[string]interface{}{"tasks": tasks, "total": result.Total})
 }
 
-func (p *StudioPlugin) handleListPlatforms(ctx context.Context, headers http.Header) (int, http.Header, []byte, error) {
-	platforms, err := hostListPlatforms(ctx, p.host)
+func (p *StudioPlugin) handleListPlatforms(w http.ResponseWriter, r *http.Request) {
+	platforms, err := hostListPlatforms(r.Context(), p.host)
 	if err != nil {
-		return http.StatusInternalServerError, headers, jsonError(err.Error()), nil
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
-	respBody, _ := json.Marshal(map[string]interface{}{"platforms": platforms})
-	return http.StatusOK, headers, respBody, nil
+	writeJSON(w, http.StatusOK, map[string]interface{}{"platforms": platforms})
 }
 
-func (p *StudioPlugin) handleListModels(ctx context.Context, body []byte, headers http.Header) (int, http.Header, []byte, error) {
-	var params struct {
-		Platform   string `json:"platform"`
-		Capability string `json:"capability"`
-	}
-	if len(body) > 0 {
-		_ = json.Unmarshal(body, &params)
-	}
-	models, err := hostListModels(ctx, p.host, params.Platform, params.Capability)
+func (p *StudioPlugin) handleListModels(w http.ResponseWriter, r *http.Request) {
+	platform := r.URL.Query().Get("platform")
+	capability := r.URL.Query().Get("capability")
+	models, err := hostListModels(r.Context(), p.host, platform, capability)
 	if err != nil {
-		return http.StatusInternalServerError, headers, jsonError(err.Error()), nil
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
-	respBody, _ := json.Marshal(map[string]interface{}{"models": models})
-	return http.StatusOK, headers, respBody, nil
+	writeJSON(w, http.StatusOK, map[string]interface{}{"models": models})
 }
 
-func jsonError(message string) []byte {
-	body, _ := json.Marshal(map[string]interface{}{
-		"error": map[string]interface{}{
-			"message": message,
-		},
-	})
-	return body
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
 }
-

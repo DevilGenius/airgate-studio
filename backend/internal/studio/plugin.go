@@ -3,7 +3,6 @@ package studio
 import (
 	"context"
 	"log/slog"
-	"net/http"
 
 	sdk "github.com/DouDOU-start/airgate-sdk/sdkgo"
 )
@@ -39,6 +38,10 @@ func (p *StudioPlugin) Stop(_ context.Context) error {
 	return nil
 }
 
-func (p *StudioPlugin) HandleRequest(_ context.Context, method, path string, _ http.Header, body []byte) (int, http.Header, []byte, error) {
-	return routeRequest(p, method, path, body)
+func (p *StudioPlugin) RegisterRoutes(r sdk.RouteRegistrar) {
+	registerRoutes(p, r)
 }
+
+func (p *StudioPlugin) Migrate() error { return nil }
+
+func (p *StudioPlugin) BackgroundTasks() []sdk.BackgroundTask { return nil }
