@@ -791,14 +791,33 @@ export const studioCSS = `
     display: none;
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 1023px) {
     .studio-mobile-tabs {
       display: flex !important;
+    }
+    [data-mobile-tab] {
+      flex-direction: column !important;
     }
     [data-mobile-tab="create"] .studio-panel-inspiration {
       display: none !important;
     }
     [data-mobile-tab="inspiration"] .studio-panel-create {
+      display: none !important;
+    }
+    .studio-panel-inspiration,
+    .studio-panel-create {
+      flex: 1 !important;
+      min-height: 0 !important;
+      width: 100% !important;
+    }
+    .studio-composer-toolbar-left {
+      flex-wrap: wrap;
+      gap: 4px !important;
+    }
+    .studio-composer-toolbar-left .studio-size-picker {
+      width: 140px !important;
+    }
+    .studio-hide-mobile {
       display: none !important;
     }
   }
