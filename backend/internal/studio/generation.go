@@ -133,6 +133,16 @@ func buildGenerationTaskResponse(task *hostTask) map[string]interface{} {
 			resp["model"] = v
 		}
 	}
+	for _, key := range []string{"size", "quality"} {
+		if v, ok := task.Attributes[key]; ok && fmt.Sprint(v) != "" {
+			resp[key] = v
+		} else if v, ok := task.Input[key]; ok && fmt.Sprint(v) != "" {
+			resp[key] = v
+		}
+	}
+	if v, ok := task.Attributes["operation"]; ok && fmt.Sprint(v) != "" {
+		resp["operation"] = v
+	}
 	return resp
 }
 

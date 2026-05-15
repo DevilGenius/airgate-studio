@@ -171,9 +171,14 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
         onClick={() => setPreviewItem(item)}
       />
       <div style={ss.galleryCardOverlay}>
-        {item.prompt && (
-          <div style={ss.galleryCardPrompt}>{item.prompt}</div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {item.size && (
+            <span style={{ fontSize: 10, color: cssVar('textTertiary'), fontFamily: cssVar('fontMono'), opacity: 0.7 }}>{item.size}</span>
+          )}
+          {item.prompt && (
+            <div style={{ ...ss.galleryCardPrompt, flex: 1, minWidth: 0 }}>{item.prompt}</div>
+          )}
+        </div>
         <div style={ss.galleryCardActions}>
           <button
             type="button"

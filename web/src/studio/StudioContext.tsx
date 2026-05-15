@@ -46,8 +46,7 @@ function modeToOperation(mode: ImageMode): 'generate' | 'edit' | 'inpaint' {
 }
 
 function taskSize(task: GenerationTask): string | undefined {
-  const value = task.parameters?.size;
-  return typeof value === 'string' ? value : undefined;
+  return task.size ?? undefined;
 }
 
 async function delay(ms: number, signal: AbortSignal): Promise<void> {

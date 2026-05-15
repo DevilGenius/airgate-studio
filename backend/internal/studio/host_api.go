@@ -49,6 +49,7 @@ type hostTask struct {
 	Progress     int                    `json:"progress"`
 	Input        map[string]interface{} `json:"input"`
 	Output       map[string]interface{} `json:"output"`
+	Attributes   map[string]interface{} `json:"attributes"`
 	ErrorMessage string                 `json:"error_message"`
 	CreatedAt    string                 `json:"created_at"`
 	UpdatedAt    string                 `json:"updated_at"`

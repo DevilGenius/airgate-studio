@@ -41,6 +41,9 @@ export interface GenerationTask {
   progress: number;
   prompt: string;
   model?: string;
+  operation?: string;
+  size?: string;
+  quality?: string;
   result_content?: string;
   error_message?: string;
   created_at: string;
