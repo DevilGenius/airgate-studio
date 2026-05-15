@@ -4,11 +4,24 @@ function baseURL(): string {
   return `/api/v1/ext-user/${PLUGIN_ID}`;
 }
 
+function getStoredToken(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return window.localStorage.getItem('token') || '';
+  } catch {
+    return '';
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = `${baseURL()}${path}`;
+  const headers: Record<string, string> = {};
+  const token = getStoredToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   const options: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
   };
   if (body !== undefined) {
     options.body = JSON.stringify(body);
@@ -82,9 +95,10 @@ export const api = {
   },
 
   listModels(platform?: string, capability?: string): Promise<ModelInfo[]> {
-    const params: Record<string, string> = {};
-    if (platform) params.platform = platform;
-    if (capability) params.capability = capability;
-    return request<{ models: ModelInfo[] }>('GET', '/models', params).then(r => r.models || []);
+    const qs = new URLSearchParams();
+    if (platform) qs.set('platform', platform);
+    if (capability) qs.set('capability', capability);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return request<{ models: ModelInfo[] }>('GET', `/models${suffix}`).then(r => r.models || []);
   },
 };
