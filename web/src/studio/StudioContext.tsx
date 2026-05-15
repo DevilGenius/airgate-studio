@@ -278,6 +278,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           status: 'failed' as const,
           error: t.error_message || 'Image generation task failed',
           createdAt: t.created_at,
+          model: t.model,
+          size: t.size,
         })),
         ...inFlight.map(t => ({
           id: `r-${t.id}`,
@@ -285,6 +287,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           mode: operationToImageMode(t.operation ?? 'generate'),
           status: 'processing' as const,
           createdAt: t.created_at,
+          model: t.model,
+          size: t.size,
         })),
       ]);
       if (inFlight.length === 0) return;
@@ -447,6 +451,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         mode,
         status: 'queued',
         createdAt: now,
+        platform: selectedPlatform,
+        model: selectedModelId,
+        size: imageSize,
       };
 
       setTasks(prev => [task, ...prev]);

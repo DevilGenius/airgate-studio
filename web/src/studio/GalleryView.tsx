@@ -72,8 +72,36 @@ const taskCardStyles: Record<string, CSSProperties> = {
     color: cssVar('textTertiary'),
     fontFamily: cssVar('fontMono'),
   },
-  deleteBtn: {
+  errorText: {
+    fontSize: 10,
+    color: cssVar('danger'),
+    textAlign: 'center',
+    lineHeight: 1.45,
+    overflow: 'hidden',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    opacity: 0.85,
+  },
+  failedActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
     marginTop: 4,
+  },
+  retryBtn: {
+    padding: '4px 12px',
+    border: `1px solid ${cssVar('borderSubtle')}`,
+    borderRadius: 6,
+    background: 'transparent',
+    color: cssVar('textSecondary'),
+    fontSize: 10,
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'all 0.15s',
+  },
+  deleteBtn: {
     padding: '4px 12px',
     border: `1px solid ${cssVar('dangerSubtle')}`,
     borderRadius: 6,
@@ -89,13 +117,22 @@ const taskCardStyles: Record<string, CSSProperties> = {
 
 function TaskCard({ task }: { task: StudioGenerationTask }) {
   const { t } = useTranslation();
-  const { deleteTask } = useStudio();
+  const { deleteTask, generate, setSelectedModelId, setImageSize, setImageMode } = useStudio();
 
   const statusLabel = task.status === 'queued'
     ? t('playground.studio_task_queued', { defaultValue: '队列中...' })
     : task.status === 'failed'
       ? t('playground.studio_task_failed', { defaultValue: '生成失败' })
       : t('playground.studio_task_processing', { defaultValue: '生成中...' });
+
+  const handleRetry = () => {
+    if (!task.prompt) return;
+    deleteTask(task.id);
+    if (task.model) setSelectedModelId(task.model);
+    if (task.size) setImageSize(task.size);
+    setImageMode(task.mode);
+    setTimeout(() => generate(task.prompt), 0);
+  };
 
   const handleDelete = async () => {
     if (!await confirm(t('playground.studio_confirm_delete_task', { defaultValue: '确定要删除这个任务吗？' }))) return;
@@ -111,20 +148,30 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
       )}
       <div style={taskCardStyles.statusLabel}>{statusLabel}</div>
       {task.status === 'failed' && task.error && (
-        <div style={taskCardStyles.prompt}>{task.error}</div>
+        <div style={taskCardStyles.errorText}>{task.error}</div>
       )}
-      {task.prompt && task.status !== 'failed' && (
+      {task.prompt && (
         <div style={taskCardStyles.prompt}>{task.prompt}</div>
       )}
       {task.status === 'failed' && (
-        <button
-          type="button"
-          style={taskCardStyles.deleteBtn}
-          className="studio-gallery-action"
-          onClick={handleDelete}
-        >
-          {t('playground.studio_delete', { defaultValue: '删除' })}
-        </button>
+        <div style={taskCardStyles.failedActions}>
+          <button
+            type="button"
+            style={taskCardStyles.retryBtn}
+            className="studio-gallery-action"
+            onClick={handleRetry}
+          >
+            {t('playground.studio_retry', { defaultValue: '重试' })}
+          </button>
+          <button
+            type="button"
+            style={taskCardStyles.deleteBtn}
+            className="studio-gallery-action"
+            onClick={handleDelete}
+          >
+            {t('playground.studio_delete', { defaultValue: '删除' })}
+          </button>
+        </div>
       )}
     </div>
   );

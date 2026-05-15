@@ -24,4 +24,7 @@ export interface StudioGenerationTask {
   result?: GalleryItem[];
   error?: string;
   createdAt: string;
+  platform?: string;
+  model?: string;
+  size?: string;
 }
