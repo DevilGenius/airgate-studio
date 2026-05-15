@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-const openAIPluginID = "gateway-openai"
-
 type createGenerationTaskRequest struct {
 	Kind       string                 `json:"kind"`
 	Operation  string                 `json:"operation"`

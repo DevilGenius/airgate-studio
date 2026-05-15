@@ -44,7 +44,7 @@ func (p *StudioPlugin) handleCreateGenerationTask(w http.ResponseWriter, r *http
 	input := buildTaskInput(req)
 	attributes := buildTaskAttributes(req)
 
-	task, err := hostCreateTask(r.Context(), p.host, openAIPluginID, taskType, userID, input, attributes)
+	task, err := hostCreateTask(r.Context(), p.host, PluginID, taskType, userID, input, attributes)
 	if err != nil {
 		p.logger.Error("create_generation_task_failed", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "创建任务失败: " + err.Error()})
