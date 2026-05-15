@@ -12,14 +12,14 @@ help: ## 显示帮助信息
 # ===================== 构建 =====================
 
 install: ## 安装前后端依赖
-	cd web && npm install
+	cd web && pnpm install
 	cd backend && $(GO) mod download
 	@echo "依赖安装完成"
 
 build: build-web build-backend ## 完整构建：前端 → 嵌入后端 → 编译
 
 build-web: ## 构建插件前端
-	cd web && npm run build
+	cd web && pnpm build
 
 build-backend: ensure-webdist ## 构建后端二进制
 	mkdir -p bin
@@ -63,7 +63,7 @@ dev: build-web ## 构建前端资产并提示如何在 core 里 dev 加载本插
 ci: ensure-webdist type-check vet test build-backend ## 本地运行与 CI 完全一致的检查
 
 type-check: ## 前端 TypeScript 类型检查
-	cd web && npm run type-check
+	cd web && pnpm type-check
 
 test: ensure-webdist ## 运行后端测试
 	cd backend && $(GO) test ./...
