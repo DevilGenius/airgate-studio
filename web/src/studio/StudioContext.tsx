@@ -117,7 +117,7 @@ async function pollGenerationTask(
     } catch (err) {
       if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
       networkErrors++;
-      if (networkErrors > 30) throw err;
+      if (networkErrors > 150) throw err;
     }
     if (task) {
       if (task.status === 'completed') return task;
@@ -125,7 +125,8 @@ async function pollGenerationTask(
         throw new Error(task.error_message || 'Image generation task failed');
       }
     }
-    await delay(POLL_INTERVAL_MS, signal);
+    const backoff = networkErrors > 0 ? Math.min(POLL_INTERVAL_MS * 2, 6000) : POLL_INTERVAL_MS;
+    await delay(backoff, signal);
   }
   throw new Error('Image generation timed out after waiting too long');
 }
@@ -169,10 +170,15 @@ export interface StudioContextValue {
 
   // Gallery
   gallery: GalleryItem[];
+  hasMore: boolean;
+  loadingMore: boolean;
+  loadMore: () => void;
   previewItem: GalleryItem | null;
   setPreviewItem: (item: GalleryItem | null) => void;
   deleteGalleryItem: (id: string) => void;
+  deleteTask: (uiId: string) => void;
   useAsReference: (item: GalleryItem) => void;
+  regenerate: (item: GalleryItem) => void;
 
 }
 
@@ -208,6 +214,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // Gallery
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [previewItem, setPreviewItem] = useState<GalleryItem | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const galleryOffsetRef = useRef(0);
 
   const recoveryPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -225,29 +234,37 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // ── Initialization ────────────────────────────────────────────────────────
 
+  const PAGE_SIZE = 20;
+
+  function tasksToGallery(taskList: GenerationTask[]): GalleryItem[] {
+    const items: GalleryItem[] = [];
+    for (const t of taskList) {
+      if (t.status !== 'completed' || !t.result_content) continue;
+      for (const img of parseMarkdownImages(t.result_content)) {
+        items.push({
+          id: uid(),
+          taskId: t.id,
+          url: img.url,
+          alt: img.alt,
+          prompt: t.prompt,
+          model: t.model ?? '',
+          mode: operationToImageMode(t.operation ?? 'generate'),
+          size: taskSize(t),
+          createdAt: t.completed_at || t.updated_at || t.created_at,
+        });
+      }
+    }
+    return items;
+  }
+
   const recoverTasks = useCallback(async (signal: AbortSignal) => {
     try {
-      const allTasks = await api.listGenerationTasks();
+      const { tasks: allTasks, total } = await api.listGenerationTasks({ limit: PAGE_SIZE, offset: 0 });
       if (signal.aborted) return;
 
-      const completed = allTasks.filter(t => t.status === 'completed' && t.result_content);
-      const recoveredGallery: GalleryItem[] = [];
-      for (const t of completed) {
-        const images = parseMarkdownImages(t.result_content || '');
-        for (const img of images) {
-          recoveredGallery.push({
-            id: uid(),
-            url: img.url,
-            alt: img.alt,
-            prompt: t.prompt,
-            model: t.model,
-            mode: operationToImageMode(t.operation),
-            size: taskSize(t),
-            createdAt: t.completed_at || t.updated_at,
-          });
-        }
-      }
-      setGallery(recoveredGallery);
+      setGallery(tasksToGallery(allTasks));
+      galleryOffsetRef.current = allTasks.length;
+      setHasMore(allTasks.length < total);
 
       const failed = allTasks.filter(t => t.status === 'failed');
       const inFlight = allTasks.filter(
@@ -258,7 +275,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         ...failed.map(t => ({
           id: `r-${t.id}`,
           prompt: t.prompt,
-          mode: operationToImageMode(t.operation),
+          mode: operationToImageMode(t.operation ?? 'generate'),
           status: 'failed' as const,
           error: t.error_message || 'Image generation task failed',
           createdAt: t.created_at,
@@ -266,7 +283,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         ...inFlight.map(t => ({
           id: `r-${t.id}`,
           prompt: t.prompt,
-          mode: operationToImageMode(t.operation),
+          mode: operationToImageMode(t.operation ?? 'generate'),
           status: 'processing' as const,
           createdAt: t.created_at,
         })),
@@ -284,11 +301,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             setGallery(prev => [
               ...imgs.map(img => ({
                 id: uid(),
+                taskId: t.id,
                 url: img.url,
                 alt: img.alt,
                 prompt: t.prompt,
-                model: t.model,
-                mode: operationToImageMode(t.operation),
+                model: t.model ?? '',
+                mode: operationToImageMode(t.operation ?? 'generate'),
                 size: taskSize(t),
                 createdAt: done.completed_at || new Date().toISOString(),
               })),
@@ -325,12 +343,76 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const { tasks: moreTasks, total } = await api.listGenerationTasks({
+        limit: PAGE_SIZE,
+        offset: galleryOffsetRef.current,
+        status: 'completed',
+      });
+      const newItems = tasksToGallery(moreTasks);
+      setGallery(prev => [...prev, ...newItems]);
+      galleryOffsetRef.current += moreTasks.length;
+      setHasMore(galleryOffsetRef.current < total);
+    } catch { /* non-fatal */ }
+    setLoadingMore(false);
+  }, [loadingMore, hasMore]);
+
   useEffect(() => {
     if (!recoveryPromiseRef.current) {
       const controller = new AbortController();
       recoveryPromiseRef.current = recoverTasks(controller.signal);
     }
   }, [recoverTasks]);
+
+  // Re-check processing tasks on visibility change (e.g. tab switch back, service restart)
+  useEffect(() => {
+    const refresh = async () => {
+      const processing = tasks.filter(t => t.status === 'processing' || t.status === 'queued');
+      if (processing.length === 0) return;
+      try {
+        const allTasks = await api.listGenerationTasks();
+        for (const uiTask of processing) {
+          const remoteId = uiTask.id.startsWith('r-') ? Number(uiTask.id.slice(2)) : null;
+          if (!remoteId) continue;
+          const remote = allTasks.find(t => t.id === remoteId);
+          if (!remote) continue;
+          if (remote.status === 'completed' && remote.result_content) {
+            const imgs = parseMarkdownImages(remote.result_content);
+            setGallery(prev => [
+              ...imgs.map(img => ({
+                id: uid(),
+                url: img.url,
+                alt: img.alt,
+                prompt: remote.prompt,
+                model: remote.model,
+                mode: operationToImageMode(remote.operation),
+                size: taskSize(remote),
+                createdAt: remote.completed_at || new Date().toISOString(),
+              })),
+              ...prev,
+            ]);
+            setTasks(prev => prev.map(gt => gt.id === uiTask.id ? { ...gt, status: 'completed' } : gt));
+          } else if (remote.status === 'failed') {
+            setTasks(prev => prev.map(gt => gt.id === uiTask.id
+              ? { ...gt, status: 'failed', error: remote.error_message || 'Task failed' }
+              : gt));
+          }
+        }
+      } catch { /* non-fatal */ }
+    };
+
+    const onVisibility = () => { if (document.visibilityState === 'visible') void refresh(); };
+    const onFocus = () => void refresh();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [tasks]);
 
   // ── Generation ────────────────────────────────────────────────────────────
 
@@ -345,6 +427,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       prompt: string,
       options?: {
         sourceImage?: string;
+        sourceImages?: string[];
         maskRegion?: { x: number; y: number; width: number; height: number };
         count?: number;
         prompts?: string[];
@@ -434,10 +517,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           };
 
           if (mode === 'img2img' || mode === 'inpaint') {
-            const sourceUrl = options?.sourceImage ?? referenceImage ?? '';
-            if (!sourceUrl && mode === 'inpaint') throw new Error('Inpaint requires a source image');
-            if (sourceUrl) {
-              taskData.inputs = [{ type: 'image', role: 'source', url: await imageUrlToDataUrl(sourceUrl) }];
+            const sources = options?.sourceImages?.length
+              ? options.sourceImages
+              : [options?.sourceImage ?? referenceImage ?? ''].filter(Boolean);
+            if (sources.length === 0 && mode === 'inpaint') throw new Error('Inpaint requires a source image');
+            if (sources.length > 0) {
+              taskData.inputs = await Promise.all(
+                sources.map(async (url) => ({ type: 'image' as const, role: 'source' as const, url: await imageUrlToDataUrl(url) })),
+              );
             }
           }
 
@@ -498,13 +585,37 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // ── Gallery helpers ───────────────────────────────────────────────────────
 
   const deleteGalleryItem = useCallback((id: string) => {
-    setGallery(prev => prev.filter(item => item.id !== id));
+    const item = gallery.find(g => g.id === id);
+    setGallery(prev => prev.filter(g => g.id !== id));
+    if (item?.taskId) {
+      api.deleteGenerationTask(item.taskId).catch(() => {});
+    }
+  }, [gallery]);
+
+  const deleteTask = useCallback((uiId: string) => {
+    setTasks(prev => prev.filter(t => t.id !== uiId));
+    const remoteId = uiId.startsWith('r-') ? Number(uiId.slice(2)) : null;
+    if (remoteId) {
+      api.deleteGenerationTask(remoteId).catch(() => {});
+    }
   }, []);
 
   const useAsReference = useCallback((item: GalleryItem) => {
     setReferenceImage(item.url);
     setImageMode('img2img');
   }, []);
+
+  const regenerate = useCallback((item: GalleryItem) => {
+    setSelectedModelId(item.model);
+    setImageMode(item.mode === 'batch' ? 'text2img' : item.mode);
+    if (item.size) setImageSize(item.size);
+    if (item.sourceUrl) setReferenceImage(item.sourceUrl);
+    setTimeout(() => {
+      generate(item.prompt, {
+        sourceImage: item.sourceUrl,
+      });
+    }, 0);
+  }, [generate, setSelectedModelId, setImageMode, setImageSize, setReferenceImage]);
 
   // ── Context value ─────────────────────────────────────────────────────────
 
@@ -526,10 +637,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     generate,
     cancelGeneration,
     gallery,
+    hasMore,
+    loadingMore,
+    loadMore,
     previewItem,
     setPreviewItem,
     deleteGalleryItem,
+    deleteTask,
     useAsReference,
+    regenerate,
   };
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;

@@ -13,6 +13,7 @@ export const studioStyles: Record<string, CSSProperties> = {
     color: cssVar('text'),
     fontFamily: cssVar('fontSans'),
     position: 'relative',
+    overflow: 'hidden',
   },
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
@@ -415,7 +416,7 @@ export const studioStyles: Record<string, CSSProperties> = {
 
   gallery: {
     flex: 1,
-    minWidth: 0,
+    minHeight: 0,
     overflowY: 'auto',
     overflowX: 'hidden',
     padding: '20px',
@@ -423,11 +424,9 @@ export const studioStyles: Record<string, CSSProperties> = {
   },
 
   galleryGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: 14,
-    alignContent: 'start',
-  },
+    columns: '200px',
+    columnGap: 14,
+  } as CSSProperties,
 
   galleryEmpty: {
     display: 'flex',
@@ -449,34 +448,31 @@ export const studioStyles: Record<string, CSSProperties> = {
     background: cssVar('bgElevated'),
     boxShadow: '0 2px 12px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2)',
     cursor: 'pointer',
-    aspectRatio: '1 / 1',
+    display: 'flex',
+    flexDirection: 'column',
+    marginBottom: 14,
+    breakInside: 'avoid',
     transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
+  } as CSSProperties,
 
   galleryCardImg: {
     width: '100%',
-    height: '100%',
     objectFit: 'cover',
     display: 'block',
   },
 
   galleryCardOverlay: {
-    position: 'absolute',
-    inset: 0,
-    background: 'linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.25) 40%, rgba(0, 0, 0, 0) 60%)',
-    opacity: 0,
-    transition: 'opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'flex-end',
-    padding: '14px',
-  },
+    gap: 6,
+    padding: '8px 10px',
+    background: cssVar('bgElevated'),
+  } as CSSProperties,
 
   galleryCardPrompt: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.88)',
+    color: cssVar('textTertiary'),
     lineHeight: 1.45,
-    marginBottom: 8,
     overflow: 'hidden',
     display: '-webkit-box',
     WebkitLineClamp: 2,
@@ -486,7 +482,7 @@ export const studioStyles: Record<string, CSSProperties> = {
 
   galleryCardActions: {
     display: 'flex',
-    gap: 5,
+    gap: 4,
     flexWrap: 'wrap',
   },
 
@@ -494,19 +490,17 @@ export const studioStyles: Record<string, CSSProperties> = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 28,
-    padding: '0 10px',
-    border: 'none',
-    borderRadius: 7,
-    background: 'rgba(255, 255, 255, 0.12)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    color: '#fff',
+    height: 26,
+    padding: '0 8px',
+    border: `1px solid ${cssVar('borderSubtle')}`,
+    borderRadius: 6,
+    background: 'transparent',
+    color: cssVar('textTertiary'),
     fontSize: 10,
-    fontWeight: 600,
+    fontWeight: 500,
     cursor: 'pointer',
     fontFamily: 'inherit',
-    transition: 'background 0.15s',
+    transition: 'background 0.15s, color 0.15s',
     whiteSpace: 'nowrap',
     letterSpacing: '0.02em',
   },
@@ -609,72 +603,29 @@ export const studioStyles: Record<string, CSSProperties> = {
     color: '#f87171',
   },
 
-  // ── Fullscreen preview overlay ────────────────────────────────────────────
+  // ── Preview overlay ───────────────────────────────────────────────────────
 
   previewOverlay: {
     position: 'fixed',
     inset: 0,
     zIndex: 1000,
-    background: 'rgba(0, 0, 0, 0.85)',
-    backdropFilter: 'blur(20px) saturate(0.8)',
-    WebkitBackdropFilter: 'blur(20px) saturate(0.8)',
+    background: 'rgba(0, 0, 0, 0.75)',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    cursor: 'pointer',
   },
 
   previewOverlayImg: {
-    maxWidth: 'min(90vw, 1200px)',
-    maxHeight: '78vh',
-    borderRadius: 14,
-    boxShadow: '0 32px 80px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.3)',
-    objectFit: 'contain',
-  },
-
-  previewOverlayMeta: {
-    marginTop: 16,
-    padding: '12px 20px',
+    maxWidth: '60vw',
+    maxHeight: '65vh',
     borderRadius: 12,
-    background: 'rgba(255, 255, 255, 0.06)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    color: 'rgba(255, 255, 255, 0.75)',
-    fontSize: 12,
-    maxWidth: 'min(90vw, 600px)',
-    textAlign: 'center',
-    lineHeight: 1.6,
+    objectFit: 'contain',
+    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+    cursor: 'default',
   },
 
-  previewOverlayActions: {
-    display: 'flex',
-    gap: 8,
-    marginTop: 14,
-  },
-
-  previewOverlayBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 38,
-    padding: '0 18px',
-    border: 'none',
-    borderRadius: 10,
-    background: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'background 0.15s',
-    letterSpacing: '0.02em',
-  },
-
-  previewOverlayClose: {
+  previewCloseBtn: {
     position: 'absolute',
     top: 20,
     right: 20,
@@ -683,9 +634,9 @@ export const studioStyles: Record<string, CSSProperties> = {
     justifyContent: 'center',
     width: 40,
     height: 40,
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
     borderRadius: 12,
-    background: 'rgba(255, 255, 255, 0.06)',
+    background: 'rgba(255, 255, 255, 0.08)',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
     color: '#fff',
@@ -715,18 +666,16 @@ export const studioStyles: Record<string, CSSProperties> = {
 
 export const studioCSS = `
   .studio-gallery-card:hover {
-    transform: translateY(-5px) scale(1.01);
+    transform: translateY(-3px) scale(1.005);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.3);
   }
-  .studio-gallery-card:hover .studio-gallery-overlay {
-    opacity: 1;
-  }
   .studio-gallery-card:active {
-    transform: translateY(-2px) scale(1.0);
+    transform: translateY(-1px) scale(1.0);
   }
 
   .studio-gallery-action:hover {
-    background: rgba(255, 255, 255, 0.22) !important;
+    background: ${cssVar('bgHover')} !important;
+    color: ${cssVar('text')} !important;
   }
 
   .studio-gen-btn:hover:not(:disabled) {
@@ -759,17 +708,24 @@ export const studioCSS = `
     border-color: ${cssVar('border')};
   }
 
+  .studio-template-card:hover {
+    border-color: ${cssVar('border')};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .studio-console-link:hover {
+    color: ${cssVar('text')};
+  }
+
   .studio-mode-tab:hover {
     background: ${cssVar('bgHover')};
     color: ${cssVar('textSecondary')};
   }
 
-  .studio-preview-btn:hover {
-    background: rgba(255, 255, 255, 0.16) !important;
-  }
 
   .studio-preview-close:hover {
-    background: rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.16) !important;
   }
 
   .studio-count-btn:hover:not(.studio-count-active) {
@@ -820,17 +776,22 @@ export const studioCSS = `
     background: rgba(255, 255, 255, 0.14);
   }
 
+  .studio-gallery {
+    scrollbar-width: none;
+  }
   .studio-gallery::-webkit-scrollbar {
-    width: 6px;
+    display: none;
   }
-  .studio-gallery::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .studio-gallery::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 6px;
-  }
-  .studio-gallery::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.12);
+
+  @media (max-width: 767px) {
+    .studio-mobile-tabs {
+      display: flex !important;
+    }
+    [data-mobile-tab="create"] .studio-panel-inspiration {
+      display: none !important;
+    }
+    [data-mobile-tab="inspiration"] .studio-panel-create {
+      display: none !important;
+    }
   }
 `;

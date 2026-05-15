@@ -86,8 +86,18 @@ export const api = {
     return request('GET', `/generation-tasks/${taskId}`);
   },
 
-  listGenerationTasks(): Promise<GenerationTask[]> {
-    return request<{ tasks: GenerationTask[] }>('GET', '/generation-tasks').then(r => r.tasks || []);
+  listGenerationTasks(params?: { limit?: number; offset?: number; status?: string }): Promise<{ tasks: GenerationTask[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.offset) qs.set('offset', String(params.offset));
+    if (params?.status) qs.set('status', params.status);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return request<{ tasks: GenerationTask[]; total: number }>('GET', `/generation-tasks${suffix}`)
+      .then(r => ({ tasks: r.tasks || [], total: r.total || 0 }));
+  },
+
+  deleteGenerationTask(taskId: number): Promise<void> {
+    return request('DELETE', `/generation-tasks/${taskId}`);
   },
 
   listPlatforms(): Promise<PlatformInfo[]> {

@@ -13,6 +13,7 @@ const (
 	hostMethodTasksCreate  = "tasks.create"
 	hostMethodTasksGet     = "tasks.get"
 	hostMethodTasksList    = "tasks.list"
+	hostMethodTasksDelete  = "tasks.delete"
 	hostMethodPlatformsList = "platforms.list"
 	hostMethodModelsList   = "models.list"
 	hostMethodUsersGet     = "users.get"
@@ -122,6 +123,18 @@ func hostListTasks(ctx context.Context, host sdk.Host, pluginID string, userID i
 		out.Total = len(out.Tasks)
 	}
 	return out, nil
+}
+
+func hostDeleteTask(ctx context.Context, host sdk.Host, pluginID string, userID, taskID int64) error {
+	payload := map[string]interface{}{
+		"task_id": taskID,
+		"user_id": userID,
+	}
+	if pluginID != "" {
+		payload["plugin_id"] = pluginID
+	}
+	_, err := hostInvoke(ctx, host, hostMethodTasksDelete, payload)
+	return err
 }
 
 func hostListPlatforms(ctx context.Context, host sdk.Host) ([]interface{}, error) {

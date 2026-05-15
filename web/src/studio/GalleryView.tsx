@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect } from 'react';
+import { type CSSProperties, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cssVar } from '@doudou-start/airgate-theme';
 import { useStudio } from './StudioContext';
@@ -15,16 +15,17 @@ const taskCardStyles: Record<string, CSSProperties> = {
     overflow: 'hidden',
     background: 'rgba(255, 255, 255, 0.03)',
     border: '1px solid rgba(255, 255, 255, 0.06)',
-    aspectRatio: '1 / 1',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 10,
     padding: 16,
+    marginBottom: 14,
+    breakInside: 'avoid',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
-  },
+  } as CSSProperties,
   spinner: {
     width: 32,
     height: 32,
@@ -65,16 +66,35 @@ const taskCardStyles: Record<string, CSSProperties> = {
     color: 'rgba(255, 255, 255, 0.3)',
     fontFamily: cssVar('fontMono'),
   },
+  deleteBtn: {
+    marginTop: 4,
+    padding: '4px 12px',
+    border: '1px solid rgba(248, 113, 113, 0.3)',
+    borderRadius: 6,
+    background: 'transparent',
+    color: '#f87171',
+    fontSize: 10,
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'all 0.15s',
+  },
 };
 
 function TaskCard({ task }: { task: StudioGenerationTask }) {
   const { t } = useTranslation();
+  const { deleteTask } = useStudio();
 
   const statusLabel = task.status === 'queued'
     ? t('playground.studio_task_queued', { defaultValue: '队列中...' })
     : task.status === 'failed'
       ? t('playground.studio_task_failed', { defaultValue: '生成失败' })
       : t('playground.studio_task_processing', { defaultValue: '生成中...' });
+
+  const handleDelete = () => {
+    if (!window.confirm(t('playground.studio_confirm_delete_task', { defaultValue: '确定要删除这个任务吗？' }))) return;
+    deleteTask(task.id);
+  };
 
   return (
     <div style={taskCardStyles.card}>
@@ -90,6 +110,16 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
       {task.prompt && task.status !== 'failed' && (
         <div style={taskCardStyles.prompt}>{task.prompt}</div>
       )}
+      {task.status === 'failed' && (
+        <button
+          type="button"
+          style={taskCardStyles.deleteBtn}
+          className="studio-gallery-action"
+          onClick={handleDelete}
+        >
+          {t('playground.studio_delete', { defaultValue: '删除' })}
+        </button>
+      )}
     </div>
   );
 }
@@ -98,11 +128,17 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
 
 function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
   const { t } = useTranslation();
-  const { setPreviewItem, deleteGalleryItem, useAsReference } = useStudio();
+  const { setPreviewItem, deleteGalleryItem, useAsReference, regenerate } = useStudio();
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     void downloadImage(item.url, item.alt);
+  };
+
+  const handleRegenerate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(t('playground.studio_confirm_regenerate', { defaultValue: '确定要重新生成吗？将消耗一次生成额度。' }))) return;
+    regenerate(item);
   };
 
   const handleUseAsReference = (e: React.MouseEvent) => {
@@ -112,13 +148,13 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!window.confirm(t('playground.studio_confirm_delete', { defaultValue: '确定要删除这张图片吗？' }))) return;
     deleteGalleryItem(item.id);
   };
 
   return (
     <div
       style={{ ...ss.galleryCard, animationDelay: `${Math.min(index * 50, 300)}ms` }}
-      onClick={() => setPreviewItem(item)}
       className="studio-gallery-card"
     >
       <img
@@ -126,8 +162,9 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
         alt={item.alt || item.prompt}
         style={ss.galleryCardImg}
         loading="lazy"
+        onClick={() => setPreviewItem(item)}
       />
-      <div style={ss.galleryCardOverlay} className="studio-gallery-overlay">
+      <div style={ss.galleryCardOverlay}>
         {item.prompt && (
           <div style={ss.galleryCardPrompt}>{item.prompt}</div>
         )}
@@ -145,6 +182,19 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
             {t('playground.studio_download', { defaultValue: '下载' })}
+          </button>
+          <button
+            type="button"
+            style={ss.galleryCardActionBtn}
+            className="studio-gallery-action"
+            onClick={handleRegenerate}
+            title={t('playground.studio_regenerate', { defaultValue: '重试' })}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 3 }}>
+              <path d="M1 4v6h6" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+            {t('playground.studio_regenerate', { defaultValue: '重试' })}
           </button>
           <button
             type="button"
@@ -184,7 +234,6 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
 // ── PreviewOverlay ──────────────────────────────────────────────────────────
 
 function PreviewOverlay() {
-  const { t } = useTranslation();
   const { previewItem, setPreviewItem } = useStudio();
 
   useEffect(() => {
@@ -198,67 +247,22 @@ function PreviewOverlay() {
 
   if (!previewItem) return null;
 
-  const handleDownload = () => {
-    void downloadImage(previewItem.url, previewItem.alt);
-  };
-
   return (
-    <div
-      style={ss.previewOverlay}
-      onClick={() => setPreviewItem(null)}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('playground.studio_preview', { defaultValue: '图片预览' })}
-    >
+    <div style={ss.previewOverlay} onClick={() => setPreviewItem(null)}>
       <button
         type="button"
-        style={ss.previewOverlayClose}
+        style={ss.previewCloseBtn}
         className="studio-preview-close"
         onClick={() => setPreviewItem(null)}
-        aria-label={t('playground.studio_close', { defaultValue: '关闭' })}
       >
         ×
       </button>
-
       <img
         src={previewItem.url}
         alt={previewItem.alt || previewItem.prompt}
         style={ss.previewOverlayImg}
         onClick={e => e.stopPropagation()}
       />
-
-      {(previewItem.prompt || previewItem.model) && (
-        <div style={ss.previewOverlayMeta} onClick={e => e.stopPropagation()}>
-          {previewItem.prompt && <div>{previewItem.prompt}</div>}
-          {previewItem.model && (
-            <div style={{ marginTop: 6, opacity: 0.55, fontSize: 11, fontFamily: cssVar('fontMono'), letterSpacing: '0.02em' }}>{previewItem.model}</div>
-          )}
-        </div>
-      )}
-
-      <div style={ss.previewOverlayActions} onClick={e => e.stopPropagation()}>
-        <button
-          type="button"
-          style={ss.previewOverlayBtn}
-          className="studio-preview-btn"
-          onClick={handleDownload}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          {t('playground.studio_download', { defaultValue: '下载' })}
-        </button>
-        <button
-          type="button"
-          style={ss.previewOverlayBtn}
-          className="studio-preview-btn"
-          onClick={() => setPreviewItem(null)}
-        >
-          {t('playground.studio_close', { defaultValue: '关闭' })}
-        </button>
-      </div>
     </div>
   );
 }
@@ -368,13 +372,29 @@ function EmptyState() {
 // ── GalleryView ─────────────────────────────────────────────────────────────
 
 export function GalleryView() {
-  const { gallery, tasks, previewItem } = useStudio();
+  const { gallery, tasks, previewItem, hasMore, loadingMore, loadMore } = useStudio();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || loadingMore || !hasMore) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) {
+      loadMore();
+    }
+  }, [loadMore, loadingMore, hasMore]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   const visibleTasks = tasks.filter(t => t.status !== 'completed');
   const isEmpty = gallery.length === 0 && visibleTasks.length === 0;
 
   return (
-    <div style={ss.gallery} className="studio-gallery">
+    <div ref={scrollRef} style={ss.gallery} className="studio-gallery">
       {previewItem && <PreviewOverlay />}
 
       {isEmpty ? (
@@ -388,6 +408,9 @@ export function GalleryView() {
             <GalleryCard key={item.id} item={item} index={i} />
           ))}
         </div>
+      )}
+      {loadingMore && (
+        <div style={{ textAlign: 'center', padding: '16px 0', color: cssVar('textTertiary'), fontSize: 12 }}>加载中...</div>
       )}
     </div>
   );

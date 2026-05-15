@@ -13,6 +13,7 @@ func registerRoutes(p *StudioPlugin, r sdk.RouteRegistrar) {
 	r.Handle(http.MethodPost, "/generation-tasks", p.handleCreateGenerationTask)
 	r.Handle(http.MethodGet, "/generation-tasks", p.handleListGenerationTasks)
 	r.Handle(http.MethodGet, "/generation-tasks/", p.handleGetGenerationTask)
+	r.Handle(http.MethodDelete, "/generation-tasks/", p.handleDeleteGenerationTask)
 	r.Handle(http.MethodGet, "/platforms", p.handleListPlatforms)
 	r.Handle(http.MethodGet, "/models", p.handleListModels)
 }
@@ -65,6 +66,23 @@ func (p *StudioPlugin) handleGetGenerationTask(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, http.StatusOK, buildGenerationTaskResponse(task))
+}
+
+func (p *StudioPlugin) handleDeleteGenerationTask(w http.ResponseWriter, r *http.Request) {
+	taskIDStr := strings.TrimPrefix(r.URL.Path, "/generation-tasks/")
+	taskID, err := strconv.ParseInt(taskIDStr, 10, 64)
+	if err != nil || taskID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid task_id"})
+		return
+	}
+
+	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
+	if err := hostDeleteTask(r.Context(), p.host, executorPluginID, userID, taskID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "删除任务失败: " + err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
 func (p *StudioPlugin) handleListGenerationTasks(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,7 @@ export type ImageMode = 'text2img' | 'img2img' | 'inpaint' | 'batch';
 
 export interface GalleryItem {
   id: string;
+  taskId?: number; // core task ID for API operations
   url: string;
   alt: string;
   prompt: string;
