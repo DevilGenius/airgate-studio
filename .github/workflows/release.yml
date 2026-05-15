@@ -1,0 +1,106 @@
+name: 发布
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 构建 ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 克隆 airgate-sdk（go.work 替换）
+        run: git clone --depth 1 https://github.com/DouDOU-start/airgate-sdk.git ../airgate-sdk
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: 构建 @airgate/theme
+        run: cd ../airgate-sdk/theme && npm ci && npm run build
+
+      - name: 构建前端
+        run: cd web && npm ci && npm run build
+
+      - name: 嵌入前端产物
+        run: |
+          rm -rf backend/internal/studio/webdist
+          cp -r web/dist backend/internal/studio/webdist
+          touch backend/internal/studio/webdist/.gitkeep
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: 构建后端二进制
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "注入 PluginVersion=${VERSION}"
+          mkdir -p bin
+          cd backend && go build -buildvcs=false -trimpath \
+            -ldflags "-X 'github.com/DouDOU-start/airgate-studio/backend/internal/studio.PluginVersion=${VERSION}'" \
+            -o ../bin/airgate-studio-${{ matrix.goos }}-${{ matrix.goarch }} .
+
+      - name: 生成 SHA256
+        run: |
+          cd bin && sha256sum airgate-studio-${{ matrix.goos }}-${{ matrix.goarch }} \
+            > airgate-studio-${{ matrix.goos }}-${{ matrix.goarch }}.sha256
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: airgate-studio-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            bin/airgate-studio-${{ matrix.goos }}-${{ matrix.goarch }}
+            bin/airgate-studio-${{ matrix.goos }}-${{ matrix.goarch }}.sha256
+          retention-days: 1
+
+  release:
+    name: 发布 Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 下载所有产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 列出产物
+        run: ls -la dist/
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/airgate-studio-*

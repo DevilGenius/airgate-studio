@@ -1,0 +1,37 @@
+name: 持续集成
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  ci:
+    name: 类型检查、测试与构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 克隆 airgate-sdk（go.work 替换）
+        run: git clone --depth 1 https://github.com/DouDOU-start/airgate-sdk.git ../airgate-sdk
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: 构建 @airgate/theme
+        run: cd ../airgate-sdk/theme && npm ci && npm run build
+
+      - name: 构建前端
+        run: cd web && npm ci && npm run build
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: 运行 CI 检查
+        run: make ci

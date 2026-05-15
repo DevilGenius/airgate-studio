@@ -160,6 +160,7 @@ export interface StudioContextValue {
     prompt: string,
     options?: {
       sourceImage?: string;
+      sourceImages?: string[];
       maskRegion?: { x: number; y: number; width: number; height: number };
       count?: number;
       prompts?: string[];
@@ -388,8 +389,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                 url: img.url,
                 alt: img.alt,
                 prompt: remote.prompt,
-                model: remote.model,
-                mode: operationToImageMode(remote.operation),
+                model: remote.model ?? '',
+                mode: operationToImageMode(remote.operation ?? 'generate'),
                 size: taskSize(remote),
                 createdAt: remote.completed_at || new Date().toISOString(),
               })),

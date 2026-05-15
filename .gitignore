@@ -1,4 +1,7 @@
+bin/
+*.tsbuildinfo
 web/node_modules/
 web/dist/
-web/package-lock.json
+backend/internal/studio/webdist/*
+!backend/internal/studio/webdist/.gitkeep
 backend/go.work.sum
