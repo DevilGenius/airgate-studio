@@ -6,6 +6,12 @@ import type { GalleryItem, StudioGenerationTask } from './types';
 import { studioStyles as ss } from './studioStyles';
 import { downloadImage } from '../utils';
 
+function confirm(message: string): Promise<boolean> {
+  const ag = (window as unknown as { airgate?: { confirm: (msg: string) => Promise<boolean> } }).airgate;
+  if (ag?.confirm) return ag.confirm(message);
+  return Promise.resolve(window.confirm(message));
+}
+
 // ── TaskCard ────────────────────────────────────────────────────────────────
 
 const taskCardStyles: Record<string, CSSProperties> = {
@@ -91,8 +97,8 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
       ? t('playground.studio_task_failed', { defaultValue: '生成失败' })
       : t('playground.studio_task_processing', { defaultValue: '生成中...' });
 
-  const handleDelete = () => {
-    if (!window.confirm(t('playground.studio_confirm_delete_task', { defaultValue: '确定要删除这个任务吗？' }))) return;
+  const handleDelete = async () => {
+    if (!await confirm(t('playground.studio_confirm_delete_task', { defaultValue: '确定要删除这个任务吗？' }))) return;
     deleteTask(task.id);
   };
 
@@ -135,9 +141,9 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
     void downloadImage(item.url, item.alt);
   };
 
-  const handleRegenerate = (e: React.MouseEvent) => {
+  const handleRegenerate = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(t('playground.studio_confirm_regenerate', { defaultValue: '确定要重新生成吗？将消耗一次生成额度。' }))) return;
+    if (!await confirm(t('playground.studio_confirm_regenerate', { defaultValue: '确定要重新生成吗？将消耗一次生成额度。' }))) return;
     regenerate(item);
   };
 
@@ -146,9 +152,9 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
     useAsReference(item);
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(t('playground.studio_confirm_delete', { defaultValue: '确定要删除这张图片吗？' }))) return;
+    if (!await confirm(t('playground.studio_confirm_delete', { defaultValue: '确定要删除这张图片吗？' }))) return;
     deleteGalleryItem(item.id);
   };
 
