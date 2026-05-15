@@ -375,13 +375,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const refresh = async () => {
       const processing = tasks.filter(t => t.status === 'processing' || t.status === 'queued');
       if (processing.length === 0) return;
-      try {
-        const allTasks = await api.listGenerationTasks();
-        for (const uiTask of processing) {
-          const remoteId = uiTask.id.startsWith('r-') ? Number(uiTask.id.slice(2)) : null;
-          if (!remoteId) continue;
-          const remote = allTasks.find(t => t.id === remoteId);
-          if (!remote) continue;
+      const checks = processing.map(async (uiTask) => {
+        const remoteId = uiTask.id.startsWith('r-') ? Number(uiTask.id.slice(2)) : null;
+        if (!remoteId) return;
+        try {
+          const remote = await api.getGenerationTask(remoteId);
           if (remote.status === 'completed' && remote.result_content) {
             const imgs = parseMarkdownImages(remote.result_content);
             setGallery(prev => [
@@ -403,8 +401,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
               ? { ...gt, status: 'failed', error: remote.error_message || 'Task failed' }
               : gt));
           }
-        }
-      } catch { /* non-fatal */ }
+        } catch { /* single task check is non-fatal */ }
+      });
+      await Promise.all(checks);
     };
 
     const onVisibility = () => { if (document.visibilityState === 'visible') void refresh(); };

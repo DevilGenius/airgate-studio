@@ -1,10 +1,36 @@
-import { type CSSProperties, useCallback, useEffect, useRef } from 'react';
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cssVar } from '@doudou-start/airgate-theme';
 import { useStudio } from './StudioContext';
 import type { GalleryItem, StudioGenerationTask } from './types';
 import { studioStyles as ss } from './studioStyles';
 import { downloadImage } from '../utils';
+
+function useNearViewport(rootMargin = '600px') {
+  const ref = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  const heightRef = useRef<number>(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setNear(true);
+        } else {
+          if (el.offsetHeight > 0) heightRef.current = el.offsetHeight;
+          setNear(false);
+        }
+      },
+      { rootMargin },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [rootMargin]);
+
+  return { ref, near, placeholderHeight: heightRef.current };
+}
 
 function confirm(message: string): Promise<boolean> {
   const ag = (window as unknown as { airgate?: { confirm: (msg: string) => Promise<boolean> } }).airgate;
@@ -182,6 +208,7 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
 function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
   const { t } = useTranslation();
   const { setPreviewItem, deleteGalleryItem, useAsReference, regenerate } = useStudio();
+  const { ref, near, placeholderHeight } = useNearViewport('800px');
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -205,8 +232,23 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
     deleteGalleryItem(item.id);
   };
 
+  if (!near && placeholderHeight > 0) {
+    return (
+      <div
+        ref={ref}
+        style={{
+          ...ss.galleryCard,
+          height: placeholderHeight,
+          background: cssVar('bgElevated'),
+        }}
+        className="studio-gallery-card"
+      />
+    );
+  }
+
   return (
     <div
+      ref={ref}
       style={{ ...ss.galleryCard, animationDelay: `${Math.min(index * 50, 300)}ms` }}
       className="studio-gallery-card"
     >
@@ -234,12 +276,11 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
             onClick={handleDownload}
             title={t('playground.studio_download', { defaultValue: '下载' })}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 3 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            {t('playground.studio_download', { defaultValue: '下载' })}
           </button>
           <button
             type="button"
@@ -248,11 +289,10 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
             onClick={handleRegenerate}
             title={t('playground.studio_regenerate', { defaultValue: '重试' })}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 3 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M1 4v6h6" />
               <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
             </svg>
-            {t('playground.studio_regenerate', { defaultValue: '重试' })}
           </button>
           <button
             type="button"
@@ -261,13 +301,12 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
             onClick={handleUseAsReference}
             title={t('playground.studio_use_as_reference', { defaultValue: '参考图' })}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 3 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M16 3h5v5" />
               <path d="M21 3l-7 7" />
               <path d="M8 21H3v-5" />
               <path d="M3 21l7-7" />
             </svg>
-            {t('playground.studio_use_as_reference', { defaultValue: '参考图' })}
           </button>
           <button
             type="button"
@@ -276,12 +315,11 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
             onClick={handleDelete}
             title={t('playground.studio_delete', { defaultValue: '删除' })}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 3 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 6h18" />
               <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
             </svg>
-            {t('playground.studio_delete', { defaultValue: '删除' })}
           </button>
         </div>
       </div>

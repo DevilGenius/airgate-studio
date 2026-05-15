@@ -489,27 +489,22 @@ export const studioStyles: Record<string, CSSProperties> = {
 
   galleryCardActions: {
     display: 'flex',
-    gap: 4,
-    flexWrap: 'wrap',
+    gap: 6,
   },
 
   galleryCardActionBtn: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 26,
-    padding: '0 8px',
+    width: 28,
+    height: 28,
+    padding: 0,
     border: `1px solid ${cssVar('borderSubtle')}`,
-    borderRadius: 6,
+    borderRadius: 7,
     background: 'transparent',
     color: cssVar('textTertiary'),
-    fontSize: 10,
-    fontWeight: 500,
     cursor: 'pointer',
-    fontFamily: 'inherit',
     transition: 'background 0.15s, color 0.15s',
-    whiteSpace: 'nowrap',
-    letterSpacing: '0.02em',
   },
 
   // ── Quick input bar (floating) ────────────────────────────────────────────
