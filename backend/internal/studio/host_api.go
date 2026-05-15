@@ -73,11 +73,15 @@ func hostCreateTask(ctx context.Context, host sdk.Host, pluginID, taskType strin
 	return hostTaskFromPayload(firstValue(resp, "task", "data", "result", ""))
 }
 
-func hostGetTask(ctx context.Context, host sdk.Host, userID, taskID int64) (*hostTask, error) {
-	resp, err := hostInvoke(ctx, host, hostMethodTasksGet, map[string]interface{}{
+func hostGetTask(ctx context.Context, host sdk.Host, pluginID string, userID, taskID int64) (*hostTask, error) {
+	payload := map[string]interface{}{
 		"task_id": taskID,
 		"user_id": userID,
-	})
+	}
+	if pluginID != "" {
+		payload["plugin_id"] = pluginID
+	}
+	resp, err := hostInvoke(ctx, host, hostMethodTasksGet, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -89,14 +93,18 @@ type hostTaskListResponse struct {
 	Total int
 }
 
-func hostListTasks(ctx context.Context, host sdk.Host, userID int64, taskType, status string, limit, offset int) (*hostTaskListResponse, error) {
-	resp, err := hostInvoke(ctx, host, hostMethodTasksList, map[string]interface{}{
+func hostListTasks(ctx context.Context, host sdk.Host, pluginID string, userID int64, taskType, status string, limit, offset int) (*hostTaskListResponse, error) {
+	payload := map[string]interface{}{
 		"user_id":   userID,
 		"task_type": taskType,
 		"status":    status,
 		"limit":     limit,
 		"offset":    offset,
-	})
+	}
+	if pluginID != "" {
+		payload["plugin_id"] = pluginID
+	}
+	resp, err := hostInvoke(ctx, host, hostMethodTasksList, payload)
 	if err != nil {
 		return nil, err
 	}

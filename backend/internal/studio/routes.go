@@ -39,7 +39,7 @@ func (p *StudioPlugin) handleCreateGenerationTask(w http.ResponseWriter, r *http
 	input := buildTaskInput(req)
 	attributes := buildTaskAttributes(req)
 
-	task, err := hostCreateTask(r.Context(), p.host, PluginID, taskType, userID, input, attributes)
+	task, err := hostCreateTask(r.Context(), p.host, executorPluginID, taskType, userID, input, attributes)
 	if err != nil {
 		p.logger.Error("create_generation_task_failed", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "创建任务失败: " + err.Error()})
@@ -58,7 +58,7 @@ func (p *StudioPlugin) handleGetGenerationTask(w http.ResponseWriter, r *http.Re
 	}
 
 	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
-	task, err := hostGetTask(r.Context(), p.host, userID, taskID)
+	task, err := hostGetTask(r.Context(), p.host, executorPluginID, userID, taskID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "查询任务失败: " + err.Error()})
 		return
@@ -80,7 +80,7 @@ func (p *StudioPlugin) handleListGenerationTasks(w http.ResponseWriter, r *http.
 	}
 	status := r.URL.Query().Get("status")
 
-	result, err := hostListTasks(r.Context(), p.host, userID, "", status, limit, offset)
+	result, err := hostListTasks(r.Context(), p.host, executorPluginID, userID, "", status, limit, offset)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "查询任务列表失败: " + err.Error()})
 		return
