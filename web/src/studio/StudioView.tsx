@@ -410,7 +410,7 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
     setImageMode,
     currentModel,
     imageSize, setImageSize,
-    isGenerating, generate,
+    generate,
     referenceImage, setReferenceImage,
   } = useStudio();
 
@@ -445,11 +445,11 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
   const allSources = sourceImages.length > 0 ? sourceImages : (referenceImage ? [referenceImage] : []);
   const hasSource = allSources.length > 0;
   const isSingleSource = allSources.length === 1;
-  const canSend = prompt.trim().length > 0 && !isGenerating;
+  const canSend = prompt.trim().length > 0;
 
   const handleSend = () => {
     const trimmed = prompt.trim();
-    if (!trimmed || isGenerating) return;
+    if (!trimmed) return;
 
     if (isSingleSource && selection) {
       setImageMode('inpaint');
@@ -596,7 +596,6 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
         onKeyDown={handleKeyDown}
         placeholder={t('playground.studio_quick_placeholder', { defaultValue: placeholder })}
         rows={2}
-        disabled={isGenerating}
       />
 
       {/* Toolbar row */}
