@@ -5,14 +5,16 @@ export const studioStyles: Record<string, CSSProperties> = {
   // ── Layout ────────────────────────────────────────────────────────────────
 
   layout: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
     display: 'flex',
     flexDirection: 'row',
-    width: '100%',
-    height: '100vh',
-    background: cssVar('bgDeep'),
+    background: cssVar('bgElevated'),
     color: cssVar('text'),
     fontFamily: cssVar('fontSans'),
-    position: 'relative',
     overflow: 'hidden',
   },
 
@@ -416,16 +418,20 @@ export const studioStyles: Record<string, CSSProperties> = {
 
   gallery: {
     flex: 1,
+    minWidth: 0,
     minHeight: 0,
+    width: '100%',
     overflowY: 'auto',
     overflowX: 'hidden',
     padding: '20px',
-    background: cssVar('bgDeep'),
-  },
+    boxSizing: 'border-box',
+    background: cssVar('bgElevated'),
+  } as CSSProperties,
 
   galleryGrid: {
     columns: '200px',
     columnGap: 14,
+    width: '100%',
   } as CSSProperties,
 
   galleryEmpty: {
@@ -446,7 +452,8 @@ export const studioStyles: Record<string, CSSProperties> = {
     borderRadius: 14,
     overflow: 'hidden',
     background: cssVar('bgElevated'),
-    boxShadow: '0 2px 12px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2)',
+    border: `1px solid ${cssVar('borderSubtle')}`,
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06)',
     cursor: 'pointer',
     display: 'flex',
     flexDirection: 'column',
@@ -715,7 +722,8 @@ export const studioCSS = `
   }
 
   .studio-console-link:hover {
-    color: ${cssVar('text')};
+    color: ${cssVar('text')} !important;
+    background: ${cssVar('bgHover')};
   }
 
   .studio-mode-tab:hover {

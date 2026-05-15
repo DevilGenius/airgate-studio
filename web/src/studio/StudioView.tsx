@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type DragEvent, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cssVar } from '@doudou-start/airgate-theme';
+import { cssVar, setTheme, getStoredTheme, type ThemeName } from '@doudou-start/airgate-theme';
 import { StudioProvider, useStudio } from './StudioContext';
 import { GalleryView } from './GalleryView';
 import { studioStyles as ss, studioCSS } from './studioStyles';
@@ -256,6 +256,7 @@ const tpl: Record<string, CSSProperties> = {
     overflow: 'hidden',
     cursor: 'pointer',
     border: `1px solid ${cssVar('borderSubtle')}`,
+    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.06)',
     transition: 'all 0.15s',
     background: cssVar('bgElevated'),
     breakInside: 'avoid',
@@ -289,6 +290,83 @@ const tpl: Record<string, CSSProperties> = {
     cursor: 'pointer',
   },
 };
+
+// ── TopNav (fixed global nav bar) ──────────────────────────────────────────
+
+const floatNav: Record<string, CSSProperties> = {
+  wrap: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 0 12px',
+    flexShrink: 0,
+  },
+  btn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '5px 10px',
+    borderRadius: 8,
+    border: `1px solid ${cssVar('borderSubtle')}`,
+    background: 'transparent',
+    color: cssVar('textTertiary'),
+    fontSize: 11,
+    fontWeight: 500,
+    textDecoration: 'none',
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  },
+  iconBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    border: `1px solid ${cssVar('borderSubtle')}`,
+    background: 'transparent',
+    color: cssVar('textTertiary'),
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'all 0.15s',
+  },
+};
+
+function FloatingNav() {
+  const { t } = useTranslation();
+  const [theme, setThemeState] = useState<ThemeName>(() => getStoredTheme());
+
+  const toggleTheme = () => {
+    const next: ThemeName = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.classList.toggle('light', next === 'light');
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    setThemeState(next);
+  };
+
+  return (
+    <div style={floatNav.wrap}>
+      <a href="/" style={floatNav.btn} className="studio-console-link">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+        </svg>
+        {t('playground.studio_console', { defaultValue: '控制台' })}
+      </a>
+      <button type="button" style={floatNav.iconBtn} className="studio-console-link" onClick={toggleTheme}>
+        {theme === 'dark' ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
 
 function InspirationSidebar({ onSelect }: { onSelect: (prompt: string) => void }) {
   const categories = [...new Set(INSPIRATIONS.map(i => i.category))];
@@ -338,6 +416,14 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
 
   const [prompt, setPrompt] = useState('');
   const [count, setCount] = useState(1);
+  const [theme, setThemeState] = useState<ThemeName>(() => getStoredTheme());
+  const toggleTheme = () => {
+    const next: ThemeName = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.classList.toggle('light', next === 'light');
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    setThemeState(next);
+  };
   const [sourceImages, setSourceImages] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -516,7 +602,7 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
       {/* Toolbar row */}
       <div style={c.toolbar}>
         <div style={c.toolbarLeft}>
-          <a href="/" style={c.consoleLink} className="studio-console-link">
+          <a href="/" style={floatNav.btn} className="studio-console-link">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
             </svg>
@@ -552,6 +638,17 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
               </button>
             ))}
           </div>
+          <button type="button" style={floatNav.iconBtn} className="studio-console-link" onClick={toggleTheme}>
+            {theme === 'dark' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
         </div>
         <button
           type="button"
@@ -876,7 +973,7 @@ const galleryLayout: Record<string, CSSProperties> = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    background: cssVar('bgDeep'),
+    background: cssVar('bgElevated'),
     overflow: 'hidden',
   },
   composerWrap: {
@@ -884,7 +981,7 @@ const galleryLayout: Record<string, CSSProperties> = {
     padding: '12px 20px 16px',
     display: 'flex',
     justifyContent: 'center',
-    background: cssVar('bgDeep'),
+    background: cssVar('bgElevated'),
   },
 };
 
@@ -954,8 +1051,8 @@ function StudioLayout() {
         <div className="studio-panel-inspiration" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <InspirationSidebar onSelect={handleTemplate} />
         </div>
-        <div className="studio-panel-create" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: cssVar('bgDeep') } as CSSProperties}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="studio-panel-create" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: cssVar('bgElevated'), overflow: 'hidden' } as CSSProperties}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '0 32px', userSelect: 'none' } as CSSProperties}>
               <div style={landing.iconWrap}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.2 }}>
