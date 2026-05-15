@@ -15,7 +15,7 @@ import { getModelConfig, getDefaultModel, MODEL_REGISTRY, type ModelConfig } fro
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_MAX_ATTEMPTS = 120;
+const POLL_MAX_ATTEMPTS = 300;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
