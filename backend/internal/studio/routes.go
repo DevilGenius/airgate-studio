@@ -33,11 +33,6 @@ func (p *StudioPlugin) handleCreateGenerationTask(w http.ResponseWriter, r *http
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "model is required"})
 		return
 	}
-	if req.GroupID <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "group_id is required"})
-		return
-	}
-
 	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
 
 	taskType := resolveTaskType(req.Kind, req.Operation)
