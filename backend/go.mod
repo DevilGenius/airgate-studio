@@ -2,7 +2,7 @@ module github.com/DouDOU-start/airgate-studio/backend
 
 go 1.25.7
 
-require github.com/DouDOU-start/airgate-sdk v0.0.0-20260514110732-56680479df13
+require github.com/DouDOU-start/airgate-sdk v0.2.0
 
 require (
 	github.com/fatih/color v1.13.0 // indirect
@@ -21,5 +21,3 @@ require (
 	google.golang.org/grpc v1.79.2 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
-
-replace github.com/DouDOU-start/airgate-sdk => ../../airgate-sdk
