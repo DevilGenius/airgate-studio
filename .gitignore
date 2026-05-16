@@ -1,4 +1,6 @@
 bin/
+go.work
+go.work.sum
 *.tsbuildinfo
 web/node_modules/
 web/dist/
