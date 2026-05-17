@@ -30,27 +30,32 @@ interface DragState {
 const local: Record<string, CSSProperties> = {
   canvasContainer: {
     position: 'relative',
+    display: 'inline-block',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
     borderRadius: 10,
     overflow: 'hidden',
     border: `1px solid ${cssVar('borderSubtle')}`,
     cursor: 'crosshair',
     userSelect: 'none',
+    lineHeight: 0,
   },
   sourceImg: {
     display: 'block',
-    width: '100%',
+    width: 'auto',
     height: 'auto',
+    maxWidth: '100%',
     maxHeight: 200,
-    objectFit: 'contain',
     pointerEvents: 'none',
   },
   selectionRect: {
     position: 'absolute',
-    border: '2px dashed rgba(255, 255, 255, 0.7)',
-    background: 'rgba(255, 255, 255, 0.08)',
+    border: '2px solid rgba(248, 113, 113, 0.95)',
+    background: 'rgba(248, 113, 113, 0.32)',
+    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.65), 0 0 18px rgba(248, 113, 113, 0.45)',
     boxSizing: 'border-box',
     pointerEvents: 'none',
-    borderRadius: 2,
+    borderRadius: 4,
   },
   canvasActions: {
     display: 'flex',
@@ -262,6 +267,7 @@ export function InpaintPanel() {
   const handleGenerate = () => {
     if (!canGenerate || !sourceImage) return;
     void generate(prompt, {
+      mode: 'inpaint',
       sourceImage,
       maskRegion: selection ?? undefined,
     });

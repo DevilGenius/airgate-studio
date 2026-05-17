@@ -22,7 +22,7 @@ export const MODEL_REGISTRY: ModelConfig[] = [
     id: 'gpt-image-2',
     name: 'GPT Image 2',
     platform: 'openai',
-    defaultSize: '1024x1024',
+    defaultSize: 'auto',
     sizes: [
       // 1K (≤1536)
       { value: 'auto',      label: 'Auto',      tier: '1K', price: 0.10 },

@@ -53,7 +53,7 @@ export function TextToImagePanel() {
     if (!trimmed || isGenerating) return;
     const fireAll = async () => {
       for (let i = 0; i < count; i++) {
-        generate(trimmed, { count: 1 });
+        generate(trimmed, { mode: 'text2img', count: 1 });
       }
     };
     void fireAll();

@@ -45,6 +45,22 @@ function modeToOperation(mode: ImageMode): 'generate' | 'edit' | 'inpaint' {
   return 'generate';
 }
 
+interface GenerateOptions {
+  mode?: ImageMode;
+  sourceImage?: string;
+  sourceImages?: string[];
+  maskRegion?: { x: number; y: number; width: number; height: number };
+  count?: number;
+  prompts?: string[];
+}
+
+function resolveGenerationMode(currentMode: ImageMode, options?: GenerateOptions): ImageMode {
+  if (options?.mode) return options.mode;
+  if (options?.maskRegion) return 'inpaint';
+  if (options?.sourceImage || options?.sourceImages?.length) return 'img2img';
+  return currentMode;
+}
+
 function taskSize(task: GenerationTask): string | undefined {
   return task.size ?? undefined;
 }
@@ -94,10 +110,13 @@ async function createMaskDataUrl(
   canvas.height = img.naturalHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Cannot create canvas context');
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const x = Math.round(region.x * canvas.width);
+  const y = Math.round(region.y * canvas.height);
+  const w = Math.round(region.width * canvas.width);
+  const h = Math.round(region.height * canvas.height);
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(region.x, region.y, region.width, region.height);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(x, y, w, h);
   return canvas.toDataURL('image/png');
 }
 
@@ -156,16 +175,7 @@ export interface StudioContextValue {
   // Generation
   isGenerating: boolean;
   tasks: StudioGenerationTask[];
-  generate: (
-    prompt: string,
-    options?: {
-      sourceImage?: string;
-      sourceImages?: string[];
-      maskRegion?: { x: number; y: number; width: number; height: number };
-      count?: number;
-      prompts?: string[];
-    },
-  ) => void;
+  generate: (prompt: string, options?: GenerateOptions) => void;
   cancelGeneration: () => void;
 
   // Gallery
@@ -259,15 +269,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const recoverTasks = useCallback(async (signal: AbortSignal) => {
     try {
-      const { tasks: allTasks, total } = await api.listGenerationTasks({ limit: PAGE_SIZE, offset: 0 });
+      const [
+        { tasks: completedTasks, total: completedTotal },
+        { tasks: recentTasks },
+      ] = await Promise.all([
+        api.listGenerationTasks({ limit: PAGE_SIZE, offset: 0, status: 'completed' }),
+        api.listGenerationTasks({ limit: PAGE_SIZE, offset: 0 }),
+      ]);
       if (signal.aborted) return;
 
-      setGallery(tasksToGallery(allTasks));
-      galleryOffsetRef.current = allTasks.length;
-      setHasMore(allTasks.length < total);
+      setGallery(tasksToGallery(completedTasks));
+      galleryOffsetRef.current = completedTasks.length;
+      setHasMore(completedTasks.length < completedTotal);
 
-      const failed = allTasks.filter(t => t.status === 'failed');
-      const inFlight = allTasks.filter(
+      const failed = recentTasks.filter(t => t.status === 'failed');
+      const inFlight = recentTasks.filter(
         t => t.status === 'pending' || t.status === 'processing',
       );
 
@@ -428,13 +444,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const generate = useCallback(
     (
       prompt: string,
-      options?: {
-        sourceImage?: string;
-        sourceImages?: string[];
-        maskRegion?: { x: number; y: number; width: number; height: number };
-        count?: number;
-        prompts?: string[];
-      },
+      options?: GenerateOptions,
     ) => {
       if (!prompt.trim()) return;
 
@@ -443,7 +453,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
       const taskId = uid();
       const now = new Date().toISOString();
-      const mode = imageMode;
+      const mode = resolveGenerationMode(imageMode, options);
 
       const task: StudioGenerationTask = {
         id: taskId,
@@ -618,6 +628,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (item.sourceUrl) setReferenceImage(item.sourceUrl);
     setTimeout(() => {
       generate(item.prompt, {
+        mode: item.mode === 'batch' ? 'text2img' : item.mode,
         sourceImage: item.sourceUrl,
       });
     }, 0);

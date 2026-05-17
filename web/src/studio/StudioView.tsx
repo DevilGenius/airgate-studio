@@ -55,9 +55,10 @@ const me: Record<string, CSSProperties> = {
   },
   selRect: {
     position: 'absolute',
-    border: '2px dashed rgba(255,255,255,0.8)',
-    background: 'rgba(255,255,255,0.1)',
-    borderRadius: 2, pointerEvents: 'none', boxSizing: 'border-box',
+    border: '2px solid rgba(248,113,113,0.95)',
+    background: 'rgba(248,113,113,0.32)',
+    boxShadow: '0 0 0 9999px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 18px rgba(248,113,113,0.45)',
+    borderRadius: 4, pointerEvents: 'none', boxSizing: 'border-box',
   } as CSSProperties,
   actions: {
     display: 'flex', gap: 8,
@@ -453,16 +454,16 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
 
     if (isSingleSource && selection) {
       setImageMode('inpaint');
-      void generate(trimmed, { sourceImage: allSources[0], maskRegion: selection });
+      void generate(trimmed, { mode: 'inpaint', sourceImage: allSources[0], maskRegion: selection });
     } else if (hasSource) {
       setImageMode('img2img');
       for (let i = 0; i < count; i++) {
-        void generate(trimmed, { sourceImages: allSources, count: 1 });
+        void generate(trimmed, { mode: 'img2img', sourceImages: allSources, count: 1 });
       }
     } else {
       setImageMode('text2img');
       for (let i = 0; i < count; i++) {
-        void generate(trimmed, { count: 1 });
+        void generate(trimmed, { mode: 'text2img', count: 1 });
       }
     }
     setPrompt('');
@@ -560,7 +561,18 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
                 alt="source"
                 style={c.thumbImg}
               />
-              {isSingleSource && selection && <div style={c.thumbSelectionDot} title="已选区" />}
+              {isSingleSource && selection && (
+                <div
+                  style={{
+                    ...c.thumbMaskOverlay,
+                    left: `${selection.x * 100}%`,
+                    top: `${selection.y * 100}%`,
+                    width: `max(${selection.width * 100}%, 10px)`,
+                    height: `max(${selection.height * 100}%, 10px)`,
+                  }}
+                  title="已选区"
+                />
+              )}
             </div>
           ))}
           {allSources.length > 1 && (
@@ -712,15 +724,13 @@ const c: Record<string, CSSProperties> = {
     objectFit: 'cover',
     pointerEvents: 'none',
   },
-  thumbSelectionDot: {
+  thumbMaskOverlay: {
     position: 'absolute',
-    bottom: 3,
-    right: 3,
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    background: cssVar('primary'),
-    boxShadow: `0 0 6px ${cssVar('primaryGlow')}`,
+    borderRadius: 3,
+    border: '2px solid rgba(248, 113, 113, 0.95)',
+    background: 'rgba(248, 113, 113, 0.42)',
+    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.65), 0 0 12px rgba(248, 113, 113, 0.65)',
+    boxSizing: 'border-box',
     pointerEvents: 'none',
   },
   thumbX: {

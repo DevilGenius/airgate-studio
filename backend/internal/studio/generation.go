@@ -73,6 +73,9 @@ func buildTaskInput(req createGenerationTaskRequest) map[string]interface{} {
 	images := extractImageInputs(req.Inputs)
 	if len(images) > 0 {
 		input["images"] = images
+		if req.Operation == "edit" || req.Operation == "inpaint" {
+			input["preserve_reference"] = true
+		}
 	}
 	if req.Mask != nil && req.Mask.URL != "" {
 		input["mask"] = req.Mask.URL

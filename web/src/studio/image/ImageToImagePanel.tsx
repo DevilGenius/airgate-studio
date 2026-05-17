@@ -219,7 +219,7 @@ export function ImageToImagePanel() {
         style={canGenerate ? ss.formGenerateBtn : ss.formGenerateBtnDisabled}
         className={canGenerate ? 'studio-gen-btn' : ''}
         disabled={!canGenerate}
-        onClick={() => { void generate(prompt, { sourceImage: sourceImage ?? undefined }); }}
+        onClick={() => { void generate(prompt, { mode: 'img2img', sourceImage: sourceImage ?? undefined }); }}
       >
         {isGenerating
           ? t('playground.studio_generating', { defaultValue: '生成中...' })

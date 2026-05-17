@@ -157,7 +157,7 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
     if (task.model) setSelectedModelId(task.model);
     if (task.size) setImageSize(task.size);
     setImageMode(task.mode);
-    setTimeout(() => generate(task.prompt), 0);
+    setTimeout(() => generate(task.prompt, { mode: task.mode }), 0);
   };
 
   const handleDelete = async () => {

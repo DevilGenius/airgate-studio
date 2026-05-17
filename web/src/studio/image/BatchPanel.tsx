@@ -163,11 +163,11 @@ export function BatchPanel() {
     if (!canGenerate) return;
     if (mode === 'multi_prompt') {
       for (const line of promptLines) {
-        void generate(line, { count: 1 });
+        void generate(line, { mode: 'batch', count: 1 });
       }
     } else {
       for (const img of images) {
-        void generate(imagePrompt.trim(), { sourceImage: img.url });
+        void generate(imagePrompt.trim(), { mode: 'img2img', sourceImage: img.url });
       }
     }
   };
