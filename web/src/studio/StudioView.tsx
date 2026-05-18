@@ -412,7 +412,7 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
     currentModel,
     imageSize, setImageSize,
     generate,
-    referenceImage, setReferenceImage,
+    referenceImages, setReferenceImages,
   } = useStudio();
 
   const [prompt, setPrompt] = useState('');
@@ -443,7 +443,10 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
     }
   }, [promptRef]);
 
-  const allSources = sourceImages.length > 0 ? sourceImages : (referenceImage ? [referenceImage] : []);
+  // Union: composer uploads come first, then gallery "use as reference" picks.
+  // Both can coexist now (previously gallery picks only showed when composer
+  // was empty, which made it impossible to combine).
+  const allSources = [...sourceImages, ...referenceImages];
   const hasSource = allSources.length > 0;
   const isSingleSource = allSources.length === 1;
   const canSend = prompt.trim().length > 0;
@@ -525,13 +528,20 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
   }, [handlePaste]);
 
   const removeSource = (index: number) => {
-    setSourceImages(prev => prev.filter((_, i) => i !== index));
+    // Index addresses allSources = [...sourceImages, ...referenceImages].
+    // Route the removal to the right backing array.
+    if (index < sourceImages.length) {
+      setSourceImages(prev => prev.filter((_, i) => i !== index));
+    } else {
+      const refIdx = index - sourceImages.length;
+      setReferenceImages(referenceImages.filter((_, i) => i !== refIdx));
+    }
     setSelection(null);
   };
 
   const clearAllSources = () => {
     setSourceImages([]);
-    setReferenceImage(null);
+    setReferenceImages([]);
     setSelection(null);
   };
 
@@ -573,6 +583,15 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
                   title="已选区"
                 />
               )}
+              <button
+                type="button"
+                style={c.thumbX}
+                onClick={(e) => { e.stopPropagation(); removeSource(i); }}
+                title={t('playground.studio_remove_source', { defaultValue: '移除' })}
+                aria-label={t('playground.studio_remove_source', { defaultValue: '移除' })}
+              >
+                ×
+              </button>
             </div>
           ))}
           {allSources.length > 1 && (
