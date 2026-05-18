@@ -168,9 +168,11 @@ export interface StudioContextValue {
   imageSize: string;
   setImageSize: (size: string) => void;
 
-  // Reference image (for img2img / inpaint)
-  referenceImage: string | null;
-  setReferenceImage: (url: string | null) => void;
+  // Reference images (for img2img / inpaint).
+  // Array so multiple gallery items can be added as references; ComposerBar
+  // unions this with its locally uploaded sourceImages.
+  referenceImages: string[];
+  setReferenceImages: (urls: string[]) => void;
 
   // Generation
   isGenerating: boolean;
@@ -213,8 +215,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [selectedModelId, setSelectedModelIdRaw] = useState(getDefaultModel().id);
   const [imageSize, setImageSize] = useState(getDefaultModel().defaultSize);
 
-  // Reference image
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  // Reference images (accumulated via "use as reference" from gallery)
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
 
   // Generation
   const [isGenerating, setIsGenerating] = useState(false);
@@ -533,9 +535,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           };
 
           if (mode === 'img2img' || mode === 'inpaint') {
+            // Source priority: caller-passed sources > caller's single source
+            // > accumulated gallery references. The reference list can hold
+            // multiple URLs now, so img2img can fan out to them all.
             const sources = options?.sourceImages?.length
               ? options.sourceImages
-              : [options?.sourceImage ?? referenceImage ?? ''].filter(Boolean);
+              : options?.sourceImage
+              ? [options.sourceImage]
+              : referenceImages;
             if (sources.length === 0 && mode === 'inpaint') throw new Error('Inpaint requires a source image');
             if (sources.length > 0) {
               taskData.inputs = await Promise.all(
@@ -545,7 +552,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           }
 
           if (mode === 'inpaint' && options?.maskRegion) {
-            const sourceUrl = options?.sourceImage ?? referenceImage ?? '';
+            // Inpaint is single-source by API contract; use the first reference.
+            const sourceUrl = options?.sourceImage ?? referenceImages[0] ?? '';
             taskData.mask = { type: 'image', role: 'mask', url: await createMaskDataUrl(sourceUrl, options.maskRegion) };
           }
 
@@ -563,8 +571,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             mode,
             size: imageSize,
             createdAt: new Date().toISOString(),
+            // GalleryItem.sourceUrl is single-valued; record the first source
+            // so "regenerate" can seed at least one reference. Multi-ref recall
+            // would need a schema change to GalleryItem.
             sourceUrl: (mode === 'img2img' || mode === 'inpaint')
-              ? (options?.sourceImage ?? referenceImage ?? undefined)
+              ? (options?.sourceImage ?? options?.sourceImages?.[0] ?? referenceImages[0] ?? undefined)
               : undefined,
           }));
 
@@ -592,7 +603,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [
       imageMode,
       imageSize,
-      referenceImage,
+      referenceImages,
       selectedPlatform,
       selectedModelId,
     ],
@@ -617,7 +628,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const useAsReference = useCallback((item: GalleryItem) => {
-    setReferenceImage(item.url);
+    // Dedupe-append rather than replace so multiple gallery items accumulate.
+    setReferenceImages(prev => prev.includes(item.url) ? prev : [...prev, item.url]);
     setImageMode('img2img');
   }, []);
 
@@ -625,14 +637,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSelectedModelId(item.model);
     setImageMode(item.mode === 'batch' ? 'text2img' : item.mode);
     if (item.size) setImageSize(item.size);
-    if (item.sourceUrl) setReferenceImage(item.sourceUrl);
+    // Regenerate resets references to the original source (one item only —
+    // GalleryItem.sourceUrl can't carry multiple references today).
+    setReferenceImages(item.sourceUrl ? [item.sourceUrl] : []);
     setTimeout(() => {
       generate(item.prompt, {
         mode: item.mode === 'batch' ? 'text2img' : item.mode,
         sourceImage: item.sourceUrl,
       });
     }, 0);
-  }, [generate, setSelectedModelId, setImageMode, setImageSize, setReferenceImage]);
+  }, [generate, setSelectedModelId, setImageMode, setImageSize]);
 
   // ── Context value ─────────────────────────────────────────────────────────
 
@@ -647,8 +661,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     selectedPlatform,
     imageSize,
     setImageSize,
-    referenceImage,
-    setReferenceImage,
+    referenceImages,
+    setReferenceImages,
     isGenerating,
     tasks,
     generate,
