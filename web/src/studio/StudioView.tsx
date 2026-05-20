@@ -235,15 +235,59 @@ const tpl: Record<string, CSSProperties> = {
     gap: 8,
     background: cssVar('bgDeep'),
   },
+  headerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '4px 4px 2px',
+  },
   title: {
     fontSize: 11,
     fontWeight: 700,
     color: cssVar('textTertiary'),
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
-    padding: '4px 4px 2px',
     fontFamily: cssVar('fontMono'),
   },
+  collapseBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 22,
+    height: 22,
+    border: `1px solid ${cssVar('borderSubtle')}`,
+    borderRadius: 6,
+    background: 'transparent',
+    color: cssVar('textTertiary'),
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'all 0.15s',
+  },
+  collapsedStrip: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 14,
+    width: '100%',
+    height: '100%',
+    padding: '14px 0',
+    border: 'none',
+    borderRight: `1px solid ${cssVar('borderSubtle')}`,
+    background: cssVar('bgDeep'),
+    color: cssVar('textTertiary'),
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'background 0.15s, color 0.15s',
+  },
+  collapsedLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    writingMode: 'vertical-rl',
+    textOrientation: 'mixed',
+    fontFamily: cssVar('fontMono'),
+    textTransform: 'uppercase',
+  } as CSSProperties,
   catLabel: {
     fontSize: 10,
     fontWeight: 700,
@@ -374,12 +418,27 @@ function FloatingNav() {
   );
 }
 
-function InspirationSidebar({ onSelect }: { onSelect: (prompt: string) => void }) {
+function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: string) => void; onCollapse?: () => void }) {
   const categories = [...new Set(INSPIRATIONS.map(i => i.category))];
 
   return (
     <div style={tpl.sidebar} className="studio-gallery">
-      <div style={tpl.title}>灵感画廊</div>
+      <div style={tpl.headerRow}>
+        <div style={tpl.title}>灵感画廊</div>
+        {onCollapse && (
+          <button
+            type="button"
+            style={tpl.collapseBtn}
+            className="studio-console-link studio-collapse-btn"
+            onClick={onCollapse}
+            title="收起灵感画廊"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+        )}
+      </div>
       {categories.map(cat => (
         <div key={cat}>
           <div style={tpl.catLabel}>{cat}</div>
@@ -403,6 +462,23 @@ function InspirationSidebar({ onSelect }: { onSelect: (prompt: string) => void }
         </div>
       ))}
     </div>
+  );
+}
+
+function CollapsedInspirationStrip({ onExpand }: { onExpand: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      style={tpl.collapsedStrip}
+      className="studio-collapsed-strip"
+      title="展开灵感画廊"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 18l6-6-6-6" />
+      </svg>
+      <span style={tpl.collapsedLabel}>灵感画廊</span>
+    </button>
   );
 }
 
@@ -1036,10 +1112,23 @@ const mobileTabStyle: Record<string, CSSProperties> = {
   },
 };
 
+const GALLERY_COLLAPSE_KEY = 'airgate-studio-gallery-collapsed';
+
 function StudioLayout() {
   const { gallery, tasks } = useStudio();
   const promptRef = useRef<{ set: (v: string) => void } | null>(null);
   const [mobileTab, setMobileTab] = useState<'inspiration' | 'create'>('create');
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(GALLERY_COLLAPSE_KEY) === '1'; } catch { return false; }
+  });
+
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(GALLERY_COLLAPSE_KEY, next ? '1' : '0'); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const visibleTasks = tasks.filter(tk => tk.status !== 'completed');
   const isEmpty = gallery.length === 0 && visibleTasks.length === 0;
@@ -1056,14 +1145,27 @@ function StudioLayout() {
     </div>
   );
 
+  const inspirationPanel = (
+    <div
+      className="studio-panel-inspiration"
+      data-collapsed={collapsed ? 'true' : 'false'}
+      style={{ minWidth: 0, overflow: 'hidden' }}
+    >
+      <div className="studio-inspiration-content" style={{ width: '100%', height: '100%' }}>
+        <InspirationSidebar onSelect={handleTemplate} onCollapse={toggleCollapsed} />
+      </div>
+      <div className="studio-inspiration-strip" style={{ width: '100%', height: '100%' }}>
+        <CollapsedInspirationStrip onExpand={toggleCollapsed} />
+      </div>
+    </div>
+  );
+
   if (isEmpty) {
     return (
       <div style={ss.layout} data-mobile-tab={mobileTab}>
         <style>{studioCSS}</style>
         {mobileTabs}
-        <div className="studio-panel-inspiration" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          <InspirationSidebar onSelect={handleTemplate} />
-        </div>
+        {inspirationPanel}
         <div className="studio-panel-create" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: cssVar('bgElevated'), overflow: 'hidden' } as CSSProperties}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '0 32px', userSelect: 'none' } as CSSProperties}>
@@ -1090,9 +1192,7 @@ function StudioLayout() {
     <div style={ss.layout} data-mobile-tab={mobileTab}>
       <style>{studioCSS}</style>
       {mobileTabs}
-      <div className="studio-panel-inspiration" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-        <InspirationSidebar onSelect={handleTemplate} />
-      </div>
+      {inspirationPanel}
       <div className="studio-panel-create" style={{ ...galleryLayout.wrapper, flex: 1, minWidth: 0 }}>
         <GalleryView />
         <div style={galleryLayout.composerWrap}>

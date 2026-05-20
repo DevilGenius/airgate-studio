@@ -6,7 +6,7 @@ import type { GalleryItem, StudioGenerationTask } from './types';
 import { studioStyles as ss } from './studioStyles';
 import { downloadImage } from '../utils';
 
-function useNearViewport(rootMargin = '600px') {
+function useNearViewport(rootMargin = '600px', estimatedHeight = 0) {
   const ref = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const heightRef = useRef<number>(0);
@@ -29,13 +29,74 @@ function useNearViewport(rootMargin = '600px') {
     return () => observer.disconnect();
   }, [rootMargin]);
 
-  return { ref, near, placeholderHeight: heightRef.current };
+  // Real measurement wins; estimate is only a fallback so the off-screen slot
+  // has a reservable height before the card has rendered once.
+  const placeholderHeight = heightRef.current || estimatedHeight;
+  return { ref, near, placeholderHeight };
 }
 
 function confirm(message: string): Promise<boolean> {
   const ag = (window as unknown as { airgate?: { confirm: (msg: string) => Promise<boolean> } }).airgate;
   if (ag?.confirm) return ag.confirm(message);
   return Promise.resolve(window.confirm(message));
+}
+
+// Core's runtime asset handler accepts ?w=256/?w=512 to serve a JPEG
+// thumbnail. Anything served from a different origin (S3, CDN) ignores the
+// param and returns the original — harmless but no benefit, so we only emit
+// srcset when the asset is local.
+function isLocalRuntimeAsset(url: string): boolean {
+  return url.startsWith('/assets-runtime/');
+}
+
+function buildThumbSrcSet(url: string): string | undefined {
+  if (!isLocalRuntimeAsset(url)) return undefined;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}w=256 256w, ${url}${sep}w=512 512w, ${url} 1024w`;
+}
+
+// Parse "1024x1024" → 1, "1024x768" → 0.75. Returns undefined if unparseable
+// so callers can fall back to letting the image define its own aspect ratio.
+function parseAspectRatio(size: string | undefined): number | undefined {
+  if (!size) return undefined;
+  const m = /^(\d+)x(\d+)$/.exec(size);
+  if (!m) return undefined;
+  const w = Number(m[1]);
+  const h = Number(m[2]);
+  if (!w || !h) return undefined;
+  return w / h;
+}
+
+function useCopyOnClick(text: string | undefined | null) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+  }, []);
+
+  const copy = useCallback(async (e: React.MouseEvent) => {
+    if (!text) return;
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback for non-secure contexts where Clipboard API is unavailable.
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => setCopied(false), 1500);
+  }, [text]);
+
+  return { copied, copy };
 }
 
 // ── TaskCard ────────────────────────────────────────────────────────────────
@@ -144,6 +205,7 @@ const taskCardStyles: Record<string, CSSProperties> = {
 function TaskCard({ task }: { task: StudioGenerationTask }) {
   const { t } = useTranslation();
   const { deleteTask, generate, setSelectedModelId, setImageSize, setImageMode } = useStudio();
+  const { copied, copy } = useCopyOnClick(task.prompt);
 
   const statusLabel = task.status === 'queued'
     ? t('playground.studio_task_queued', { defaultValue: '队列中...' })
@@ -177,7 +239,18 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
         <div style={taskCardStyles.errorText}>{task.error}</div>
       )}
       {task.prompt && (
-        <div style={taskCardStyles.prompt}>{task.prompt}</div>
+        <div
+          style={{
+            ...taskCardStyles.prompt,
+            cursor: 'pointer',
+            color: copied ? cssVar('primary') : taskCardStyles.prompt.color,
+            transition: 'color 0.2s',
+          }}
+          onClick={copy}
+          title={copied ? '已复制到剪贴板' : '点击复制提示词'}
+        >
+          {copied ? '✓ 已复制' : task.prompt}
+        </div>
       )}
       {task.status === 'failed' && (
         <div style={taskCardStyles.failedActions}>
@@ -205,10 +278,21 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
 
 // ── GalleryCard ─────────────────────────────────────────────────────────────
 
+// Column width is driven by ss.galleryGrid `columns: '200px'`. Keep this in
+// sync if that value changes — used only for the off-screen height estimate.
+const GALLERY_COL_WIDTH = 200;
+// Approximate fixed overlay footprint (size badge + prompt + action row).
+const GALLERY_OVERLAY_HEIGHT = 78;
+
 function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
   const { t } = useTranslation();
   const { setPreviewItem, deleteGalleryItem, useAsReference, regenerate } = useStudio();
-  const { ref, near, placeholderHeight } = useNearViewport('800px');
+  const { copied, copy } = useCopyOnClick(item.prompt);
+  const aspectRatio = parseAspectRatio(item.size);
+  const estimatedHeight = aspectRatio
+    ? Math.round(GALLERY_COL_WIDTH / aspectRatio) + GALLERY_OVERLAY_HEIGHT
+    : 0;
+  const { ref, near, placeholderHeight } = useNearViewport('800px', estimatedHeight);
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -254,9 +338,13 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
     >
       <img
         src={item.url}
+        srcSet={buildThumbSrcSet(item.url)}
+        sizes="(max-width: 1023px) 50vw, 200px"
         alt={item.alt || item.prompt}
-        style={ss.galleryCardImg}
+        style={aspectRatio !== undefined ? { ...ss.galleryCardImg, aspectRatio: String(aspectRatio) } : ss.galleryCardImg}
         loading="lazy"
+        decoding="async"
+        fetchPriority="low"
         onClick={() => setPreviewItem(item)}
       />
       <div style={ss.galleryCardOverlay}>
@@ -265,7 +353,20 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
             <span style={{ fontSize: 10, color: cssVar('textTertiary'), fontFamily: cssVar('fontMono'), opacity: 0.7 }}>{item.size}</span>
           )}
           {item.prompt && (
-            <div style={{ ...ss.galleryCardPrompt, flex: 1, minWidth: 0 }}>{item.prompt}</div>
+            <div
+              style={{
+                ...ss.galleryCardPrompt,
+                flex: 1,
+                minWidth: 0,
+                cursor: 'pointer',
+                color: copied ? cssVar('primary') : ss.galleryCardPrompt.color,
+                transition: 'color 0.2s',
+              }}
+              onClick={copy}
+              title={copied ? '已复制到剪贴板' : '点击复制提示词'}
+            >
+              {copied ? '✓ 已复制' : item.prompt}
+            </div>
           )}
         </div>
         <div style={ss.galleryCardActions}>
@@ -331,6 +432,7 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
 
 function PreviewOverlay() {
   const { previewItem, setPreviewItem } = useStudio();
+  const [hiResReady, setHiResReady] = useState(false);
 
   useEffect(() => {
     if (!previewItem) return;
@@ -341,7 +443,31 @@ function PreviewOverlay() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [previewItem, setPreviewItem]);
 
+  // Preload the original off-DOM. When ready, swap the displayed src from the
+  // 512-wide thumb (often already cached by the gallery grid) to the full-res
+  // image. Reset on every previewItem change so navigation between items
+  // re-shows the placeholder until the new hi-res arrives.
+  useEffect(() => {
+    setHiResReady(false);
+    if (!previewItem) return;
+    if (!isLocalRuntimeAsset(previewItem.url)) {
+      setHiResReady(true);
+      return;
+    }
+    const img = new window.Image();
+    let cancelled = false;
+    img.onload = () => { if (!cancelled) setHiResReady(true); };
+    img.onerror = () => { if (!cancelled) setHiResReady(true); };
+    img.src = previewItem.url;
+    return () => { cancelled = true; };
+  }, [previewItem]);
+
   if (!previewItem) return null;
+
+  const useProgressive = isLocalRuntimeAsset(previewItem.url) && !hiResReady;
+  const displaySrc = useProgressive
+    ? `${previewItem.url}${previewItem.url.includes('?') ? '&' : '?'}w=512`
+    : previewItem.url;
 
   return (
     <div style={ss.previewOverlay} onClick={() => setPreviewItem(null)}>
@@ -354,9 +480,11 @@ function PreviewOverlay() {
         ×
       </button>
       <img
-        src={previewItem.url}
+        src={displaySrc}
         alt={previewItem.alt || previewItem.prompt}
-        style={ss.previewOverlayImg}
+        style={useProgressive
+          ? { ...ss.previewOverlayImg, filter: 'blur(6px)', transition: 'filter 0.25s' }
+          : { ...ss.previewOverlayImg, filter: 'blur(0)', transition: 'filter 0.25s' }}
         onClick={e => e.stopPropagation()}
       />
     </div>

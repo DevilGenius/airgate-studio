@@ -786,6 +786,29 @@ export const studioCSS = `
     display: none;
   }
 
+  .studio-panel-inspiration {
+    flex: 0 0 320px;
+    transition: flex-basis 0.2s ease;
+  }
+  .studio-panel-inspiration[data-collapsed="true"] {
+    flex: 0 0 36px;
+  }
+  .studio-panel-inspiration[data-collapsed="true"] .studio-inspiration-content {
+    display: none;
+  }
+  .studio-panel-inspiration:not([data-collapsed="true"]) .studio-inspiration-strip {
+    display: none;
+  }
+  .studio-collapsed-strip:hover {
+    background: ${cssVar('bgHover')} !important;
+    color: ${cssVar('text')} !important;
+  }
+  .studio-collapse-btn:hover {
+    background: ${cssVar('bgHover')} !important;
+    color: ${cssVar('text')} !important;
+    border-color: ${cssVar('border')} !important;
+  }
+
   @media (max-width: 1023px) {
     .studio-mobile-tabs {
       display: flex !important;
@@ -804,6 +827,12 @@ export const studioCSS = `
       flex: 1 !important;
       min-height: 0 !important;
       width: 100% !important;
+    }
+    .studio-panel-inspiration .studio-inspiration-content {
+      display: block !important;
+    }
+    .studio-panel-inspiration .studio-inspiration-strip {
+      display: none !important;
     }
     .studio-composer-toolbar-left {
       flex-wrap: wrap;
