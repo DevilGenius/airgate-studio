@@ -87,12 +87,13 @@ const me: Record<string, CSSProperties> = {
   },
 };
 
-function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDelete }: {
+function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDelete, maskingEnabled = true }: {
   src: string;
   selection: NormalizedRect | null;
   onConfirm: (sel: NormalizedRect | null) => void;
   onClose: () => void;
   onDelete?: () => void;
+  maskingEnabled?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [sel, setSel] = useState<NormalizedRect | null>(initialSelection);
@@ -158,28 +159,32 @@ function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDe
 
   return (
     <div style={me.overlay} onClick={onClose}>
-      <div style={me.hint}>在图片上拖拽框选要局部修改的区域，不框选则为整图变换</div>
+      {maskingEnabled && (
+        <div style={me.hint}>在图片上拖拽框选要局部修改的区域，不框选则为整图变换</div>
+      )}
       <div
         ref={containerRef}
-        style={me.canvas}
+        style={maskingEnabled ? me.canvas : { ...me.canvas, cursor: 'default' }}
         onClick={e => e.stopPropagation()}
-        onMouseDown={onDown}
-        onMouseMove={onMove}
-        onMouseUp={onUp}
-        onMouseLeave={onUp}
+        onMouseDown={maskingEnabled ? onDown : undefined}
+        onMouseMove={maskingEnabled ? onMove : undefined}
+        onMouseUp={maskingEnabled ? onUp : undefined}
+        onMouseLeave={maskingEnabled ? onUp : undefined}
       >
         <img src={src} alt="source" style={me.img} />
-        {overlay}
+        {maskingEnabled && overlay}
       </div>
       <div style={me.actions} onClick={e => e.stopPropagation()}>
         {onDelete && (
           <button type="button" style={me.btnDanger} onClick={onDelete}>删除图片</button>
         )}
-        {sel && (
+        {maskingEnabled && sel && (
           <button type="button" style={me.btn} onClick={() => setSel(null)}>清除选区</button>
         )}
-        <button type="button" style={me.btn} onClick={onClose}>取消</button>
-        <button type="button" style={me.btnPrimary} onClick={() => onConfirm(sel)}>确定</button>
+        <button type="button" style={me.btn} onClick={onClose}>{maskingEnabled ? '取消' : '关闭'}</button>
+        {maskingEnabled && (
+          <button type="button" style={me.btnPrimary} onClick={() => onConfirm(sel)}>确定</button>
+        )}
       </div>
     </div>
   );
@@ -430,7 +435,9 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
 
   // mask state (only for single image → inpaint)
   const [selection, setSelection] = useState<NormalizedRect | null>(null);
-  const [maskEditorOpen, setMaskEditorOpen] = useState(false);
+  // Index into allSources for the thumbnail currently open in the preview/mask editor.
+  // null when closed. Multi-image opens in preview-only mode (no mask drawing).
+  const [editorIndex, setEditorIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -565,7 +572,7 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
       {hasSource && (
         <div style={c.sourceStrip}>
           {allSources.map((src, i) => (
-            <div key={i} style={c.thumbWrap} onClick={() => { if (isSingleSource) setMaskEditorOpen(true); }}>
+            <div key={i} style={c.thumbWrap} onClick={() => setEditorIndex(i)}>
               <img
                 src={src}
                 alt="source"
@@ -583,15 +590,6 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
                   title="已选区"
                 />
               )}
-              <button
-                type="button"
-                style={c.thumbX}
-                onClick={(e) => { e.stopPropagation(); removeSource(i); }}
-                title={t('playground.studio_remove_source', { defaultValue: '移除' })}
-                aria-label={t('playground.studio_remove_source', { defaultValue: '移除' })}
-              >
-                ×
-              </button>
             </div>
           ))}
           {allSources.length > 1 && (
@@ -607,13 +605,20 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
           {modeHint && <span style={c.modeHint}>{modeHint}</span>}
         </div>
       )}
-      {maskEditorOpen && isSingleSource && (
+      {editorIndex !== null && allSources[editorIndex] && (
         <MaskEditor
-          src={allSources[0]}
-          selection={selection}
-          onConfirm={(sel) => { setSelection(sel); setMaskEditorOpen(false); }}
-          onClose={() => setMaskEditorOpen(false)}
-          onDelete={() => { clearAllSources(); setMaskEditorOpen(false); }}
+          src={allSources[editorIndex]}
+          selection={isSingleSource ? selection : null}
+          maskingEnabled={isSingleSource}
+          onConfirm={(sel) => {
+            if (isSingleSource) setSelection(sel);
+            setEditorIndex(null);
+          }}
+          onClose={() => setEditorIndex(null)}
+          onDelete={() => {
+            removeSource(editorIndex);
+            setEditorIndex(null);
+          }}
         />
       )}
       <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileInput} />
@@ -751,26 +756,6 @@ const c: Record<string, CSSProperties> = {
     boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.65), 0 0 12px rgba(248, 113, 113, 0.65)',
     boxSizing: 'border-box',
     pointerEvents: 'none',
-  },
-  thumbX: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    border: 'none',
-    borderRadius: '50%',
-    background: 'rgba(0,0,0,0.7)',
-    color: '#fff',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 12,
-    fontWeight: 700,
-    padding: 0,
-    lineHeight: 1,
-    zIndex: 2,
   },
   sourceActionBtn: {
     padding: '3px 8px',
