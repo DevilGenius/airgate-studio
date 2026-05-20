@@ -83,18 +83,6 @@ async function delay(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-async function imageUrlToDataUrl(url: string): Promise<string> {
-  if (url.startsWith('data:')) return url;
-  const resp = await fetch(url);
-  const blob = await resp.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 async function createMaskDataUrl(
   sourceUrl: string,
   region: { x: number; y: number; width: number; height: number },
@@ -545,9 +533,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
               : referenceImages;
             if (sources.length === 0 && mode === 'inpaint') throw new Error('Inpaint requires a source image');
             if (sources.length > 0) {
-              taskData.inputs = await Promise.all(
-                sources.map(async (url) => ({ type: 'image' as const, role: 'source' as const, url: await imageUrlToDataUrl(url) })),
-              );
+              // 直接透传 source URL（data:、/assets-runtime/、http(s) 都行）。
+              // core 的 normalizeTaskInputAssets 只对 data:image/* 大图落盘，已经是
+              // URL 形式的会原样保留，避免"画廊 URL → 前端 fetch → data URI → 后端再落盘"
+              // 的来回搬运。
+              taskData.inputs = sources.map(url => ({ type: 'image' as const, role: 'source' as const, url }));
             }
           }
 
