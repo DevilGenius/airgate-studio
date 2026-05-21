@@ -22,6 +22,7 @@ export interface StudioGenerationTask {
   status: 'queued' | 'processing' | 'completed' | 'failed';
   progress?: number;
   result?: GalleryItem[];
+  remoteTaskIds?: number[];
   error?: string;
   createdAt: string;
   platform?: string;

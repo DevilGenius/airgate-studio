@@ -33,6 +33,17 @@ function parseMarkdownImages(text: string): Array<{ url: string; alt: string }> 
   return results;
 }
 
+function uniqueNumbers(values: Array<number | undefined | null>): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const value of values) {
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+}
+
 function operationToImageMode(operation: string): ImageMode {
   if (operation === 'inpaint') return 'inpaint';
   if (operation === 'edit') return 'img2img';
@@ -52,6 +63,16 @@ interface GenerateOptions {
   maskRegion?: { x: number; y: number; width: number; height: number };
   count?: number;
   prompts?: string[];
+}
+
+function taskRemoteIds(task: StudioGenerationTask | undefined): number[] {
+  if (!task) return [];
+  const recoveredId = task.id.startsWith('r-') ? Number(task.id.slice(2)) : undefined;
+  return uniqueNumbers([
+    ...(task.remoteTaskIds || []),
+    recoveredId,
+    ...(task.result || []).map(item => item.taskId),
+  ]);
 }
 
 function resolveGenerationMode(currentMode: ImageMode, options?: GenerateOptions): ImageMode {
@@ -287,6 +308,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           createdAt: t.created_at,
           model: t.model,
           size: t.size,
+          remoteTaskIds: [t.id],
         })),
         ...inFlight.map(t => ({
           id: `r-${t.id}`,
@@ -296,6 +318,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           createdAt: t.created_at,
           model: t.model,
           size: t.size,
+          remoteTaskIds: [t.id],
         })),
       ]);
       if (inFlight.length === 0) return;
@@ -383,7 +406,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const processing = tasks.filter(t => t.status === 'processing' || t.status === 'queued');
       if (processing.length === 0) return;
       const checks = processing.map(async (uiTask) => {
-        const remoteId = uiTask.id.startsWith('r-') ? Number(uiTask.id.slice(2)) : null;
+        const remoteId = taskRemoteIds(uiTask)[0] ?? null;
         if (!remoteId) return;
         try {
           const remote = await api.getGenerationTask(remoteId);
@@ -392,6 +415,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             setGallery(prev => [
               ...imgs.map(img => ({
                 id: uid(),
+                taskId: remoteId,
                 url: img.url,
                 alt: img.alt,
                 prompt: remote.prompt,
@@ -444,6 +468,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const taskId = uid();
       const now = new Date().toISOString();
       const mode = resolveGenerationMode(imageMode, options);
+      const remoteTaskIds: number[] = [];
 
       const task: StudioGenerationTask = {
         id: taskId,
@@ -454,6 +479,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         platform: selectedPlatform,
         model: selectedModelId,
         size: imageSize,
+        remoteTaskIds: [],
       };
 
       setTasks(prev => [task, ...prev]);
@@ -465,127 +491,132 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       };
 
       const runTask = async () => {
-      try {
-        updateTask({ status: 'processing' });
+        try {
+          updateTask({ status: 'processing' });
 
-        if (mode === 'batch') {
-          const prompts = options?.prompts?.length
-            ? options.prompts
-            : Array.from({ length: options?.count ?? 4 }, () => prompt);
+          if (mode === 'batch') {
+            const prompts = options?.prompts?.length
+              ? options.prompts
+              : Array.from({ length: options?.count ?? 4 }, () => prompt);
 
-          const batchTasks = prompts.map(async (p) => {
-            const created = await api.createGenerationTask({
-              kind: 'image',
-              operation: 'generate',
-              platform: selectedPlatform,
-              model: selectedModelId,
-              prompt: p,
-              parameters: imageSize ? { size: imageSize } : undefined,
+            const batchTasks = prompts.map(async (p) => {
+              const created = await api.createGenerationTask({
+                kind: 'image',
+                operation: 'generate',
+                platform: selectedPlatform,
+                model: selectedModelId,
+                prompt: p,
+                parameters: imageSize ? { size: imageSize } : undefined,
+              });
+              remoteTaskIds.push(created.id);
+              updateTask({ remoteTaskIds: [...remoteTaskIds] });
+              const completed = await pollGenerationTask(created.id, signal);
+              return parseMarkdownImages(completed.result_content || '').map(img => ({ ...img, prompt: p, taskId: created.id }));
             });
-            const completed = await pollGenerationTask(created.id, signal);
-            return parseMarkdownImages(completed.result_content || '').map(img => ({ ...img, prompt: p }));
-          });
 
-          const settled = await Promise.allSettled(batchTasks);
+            const settled = await Promise.allSettled(batchTasks);
 
-          const allItems: GalleryItem[] = [];
-          for (const outcome of settled) {
-            if (outcome.status === 'fulfilled') {
-              for (const img of outcome.value) {
-                allItems.push({
-                  id: uid(),
-                  url: img.url,
-                  alt: img.alt,
-                  prompt: img.prompt,
-                  model: selectedModelId,
-                  mode,
-                  size: imageSize,
-                  createdAt: new Date().toISOString(),
-                });
+            const allItems: GalleryItem[] = [];
+            for (const outcome of settled) {
+              if (outcome.status === 'fulfilled') {
+                for (const img of outcome.value) {
+                  allItems.push({
+                    id: uid(),
+                    taskId: img.taskId,
+                    url: img.url,
+                    alt: img.alt,
+                    prompt: img.prompt,
+                    model: selectedModelId,
+                    mode,
+                    size: imageSize,
+                    createdAt: new Date().toISOString(),
+                  });
+                }
               }
             }
-          }
 
-          if (allItems.length === 0) throw new Error('Batch generation: all tasks failed');
+            if (allItems.length === 0) throw new Error('Batch generation: all tasks failed');
 
-          setGallery(prev => [...allItems, ...prev]);
-          updateTask({ status: 'completed', result: allItems });
+            setGallery(prev => [...allItems, ...prev]);
+            updateTask({ status: 'completed', result: allItems, remoteTaskIds: [...remoteTaskIds] });
 
-        } else {
-          // text2img / img2img / inpaint — 统一走 task 系统
-          const taskData: Parameters<typeof api.createGenerationTask>[0] = {
-            kind: 'image',
-            operation: modeToOperation(mode),
-            platform: selectedPlatform,
-            model: selectedModelId,
-            prompt,
-            parameters: imageSize ? { size: imageSize } : undefined,
-          };
+          } else {
+            // text2img / img2img / inpaint — 统一走 task 系统
+            const taskData: Parameters<typeof api.createGenerationTask>[0] = {
+              kind: 'image',
+              operation: modeToOperation(mode),
+              platform: selectedPlatform,
+              model: selectedModelId,
+              prompt,
+              parameters: imageSize ? { size: imageSize } : undefined,
+            };
 
-          if (mode === 'img2img' || mode === 'inpaint') {
-            // Source priority: caller-passed sources > caller's single source
-            // > accumulated gallery references. The reference list can hold
-            // multiple URLs now, so img2img can fan out to them all.
-            const sources = options?.sourceImages?.length
-              ? options.sourceImages
-              : options?.sourceImage
-              ? [options.sourceImage]
-              : referenceImages;
-            if (sources.length === 0 && mode === 'inpaint') throw new Error('Inpaint requires a source image');
-            if (sources.length > 0) {
-              // 直接透传 source URL（data:、/assets-runtime/、http(s) 都行）。
-              // core 的 normalizeTaskInputAssets 只对 data:image/* 大图落盘，已经是
-              // URL 形式的会原样保留，避免"画廊 URL → 前端 fetch → data URI → 后端再落盘"
-              // 的来回搬运。
-              taskData.inputs = sources.map(url => ({ type: 'image' as const, role: 'source' as const, url }));
+            if (mode === 'img2img' || mode === 'inpaint') {
+              // Source priority: caller-passed sources > caller's single source
+              // > accumulated gallery references. The reference list can hold
+              // multiple URLs now, so img2img can fan out to them all.
+              const sources = options?.sourceImages?.length
+                ? options.sourceImages
+                : options?.sourceImage
+                ? [options.sourceImage]
+                : referenceImages;
+              if (sources.length === 0 && mode === 'inpaint') throw new Error('Inpaint requires a source image');
+              if (sources.length > 0) {
+                // 直接透传 source URL（data:、/assets-runtime/、http(s) 都行）。
+                // core 的 normalizeTaskInputAssets 只对 data:image/* 大图落盘，已经是
+                // URL 形式的会原样保留，避免"画廊 URL → 前端 fetch → data URI → 后端再落盘"
+                // 的来回搬运。
+                taskData.inputs = sources.map(url => ({ type: 'image' as const, role: 'source' as const, url }));
+              }
             }
+
+            if (mode === 'inpaint' && options?.maskRegion) {
+              // Inpaint is single-source by API contract; use the first reference.
+              const sourceUrl = options?.sourceImage ?? referenceImages[0] ?? '';
+              taskData.mask = { type: 'image', role: 'mask', url: await createMaskDataUrl(sourceUrl, options.maskRegion) };
+            }
+
+            const created = await api.createGenerationTask(taskData);
+            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+            updateTask({ remoteTaskIds: [created.id] });
+            const completed = await pollGenerationTask(created.id, signal);
+            const images = parseMarkdownImages(completed.result_content || '');
+
+            const galleryItems: GalleryItem[] = images.map(img => ({
+              id: uid(),
+              taskId: created.id,
+              url: img.url,
+              alt: img.alt,
+              prompt,
+              model: selectedModelId,
+              mode,
+              size: imageSize,
+              createdAt: new Date().toISOString(),
+              // GalleryItem.sourceUrl is single-valued; record the first source
+              // so "regenerate" can seed at least one reference. Multi-ref recall
+              // would need a schema change to GalleryItem.
+              sourceUrl: (mode === 'img2img' || mode === 'inpaint')
+                ? (options?.sourceImage ?? options?.sourceImages?.[0] ?? referenceImages[0] ?? undefined)
+                : undefined,
+            }));
+
+            setGallery(prev => [...galleryItems, ...prev]);
+            updateTask({ status: 'completed', result: galleryItems, remoteTaskIds: [created.id] });
           }
-
-          if (mode === 'inpaint' && options?.maskRegion) {
-            // Inpaint is single-source by API contract; use the first reference.
-            const sourceUrl = options?.sourceImage ?? referenceImages[0] ?? '';
-            taskData.mask = { type: 'image', role: 'mask', url: await createMaskDataUrl(sourceUrl, options.maskRegion) };
+        } catch (err) {
+          if (signal.aborted) {
+            updateTask({ status: 'failed', error: 'Generation cancelled' });
+          } else {
+            const msg = err instanceof Error ? err.message : 'Generation failed';
+            updateTask({ status: 'failed', error: msg });
           }
-
-          const created = await api.createGenerationTask(taskData);
-          if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-          const completed = await pollGenerationTask(created.id, signal);
-          const images = parseMarkdownImages(completed.result_content || '');
-
-          const galleryItems: GalleryItem[] = images.map(img => ({
-            id: uid(),
-            url: img.url,
-            alt: img.alt,
-            prompt,
-            model: selectedModelId,
-            mode,
-            size: imageSize,
-            createdAt: new Date().toISOString(),
-            // GalleryItem.sourceUrl is single-valued; record the first source
-            // so "regenerate" can seed at least one reference. Multi-ref recall
-            // would need a schema change to GalleryItem.
-            sourceUrl: (mode === 'img2img' || mode === 'inpaint')
-              ? (options?.sourceImage ?? options?.sourceImages?.[0] ?? referenceImages[0] ?? undefined)
-              : undefined,
-          }));
-
-          setGallery(prev => [...galleryItems, ...prev]);
-          updateTask({ status: 'completed', result: galleryItems });
+        } finally {
+          activeCountRef.current -= 1;
+          if (activeCountRef.current <= 0) {
+            activeCountRef.current = 0;
+            setIsGenerating(false);
+          }
         }
-      } catch (err) {
-        if (signal.aborted) {
-          updateTask({ status: 'failed', error: 'Generation cancelled' });
-        } else {
-          const msg = err instanceof Error ? err.message : 'Generation failed';
-          updateTask({ status: 'failed', error: msg });
-        }
-      } finally {
-        activeCountRef.current -= 1;
-        if (activeCountRef.current <= 0) {
-          activeCountRef.current = 0;
-          setIsGenerating(false);
-        }
-      }
       };
 
       void runTask();
@@ -601,21 +632,38 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // ── Gallery helpers ───────────────────────────────────────────────────────
 
-  const deleteGalleryItem = useCallback((id: string) => {
-    const item = gallery.find(g => g.id === id);
-    setGallery(prev => prev.filter(g => g.id !== id));
-    if (item?.taskId) {
-      api.deleteGenerationTask(item.taskId).catch(() => {});
-    }
-  }, [gallery]);
-
   const deleteTask = useCallback((uiId: string) => {
+    const task = tasks.find(t => t.id === uiId);
+    const remoteIds = uniqueNumbers([
+      ...(task ? taskRemoteIds(task) : []),
+      ...((uiId.startsWith('r-') ? [Number(uiId.slice(2))] : [])),
+    ]);
     setTasks(prev => prev.filter(t => t.id !== uiId));
-    const remoteId = uiId.startsWith('r-') ? Number(uiId.slice(2)) : null;
-    if (remoteId) {
+    if (remoteIds.length > 0) {
+      setGallery(prev => prev.filter(item => !item.taskId || !remoteIds.includes(item.taskId)));
+    }
+    for (const remoteId of remoteIds) {
       api.deleteGenerationTask(remoteId).catch(() => {});
     }
-  }, []);
+  }, [tasks]);
+
+  const deleteGalleryItem = useCallback((id: string) => {
+    const item = gallery.find(g => g.id === id);
+    if (!item) return;
+    const matchingTask = item.taskId
+      ? tasks.find(task => taskRemoteIds(task).includes(item.taskId!))
+      : undefined;
+    if (matchingTask) {
+      deleteTask(matchingTask.id);
+      return;
+    }
+    setGallery(prev => (item.taskId
+      ? prev.filter(g => g.taskId !== item.taskId)
+      : prev.filter(g => g.id !== id)));
+    if (item.taskId) {
+      api.deleteGenerationTask(item.taskId).catch(() => {});
+    }
+  }, [deleteTask, gallery, tasks]);
 
   const useAsReference = useCallback((item: GalleryItem) => {
     // Dedupe-append rather than replace so multiple gallery items accumulate.
