@@ -471,9 +471,51 @@ export const studioStyles: Record<string, CSSProperties> = {
   galleryCardOverlay: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 6,
+    gap: 7,
     padding: '8px 10px',
     background: cssVar('bgElevated'),
+  } as CSSProperties,
+
+  galleryCardMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  } as CSSProperties,
+
+  galleryCardMetaItem: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: 10,
+    lineHeight: 1.2,
+    color: cssVar('textTertiary'),
+    fontFamily: cssVar('fontMono'),
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.01em',
+  } as CSSProperties,
+
+  galleryCardExpiryBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 6px',
+    borderRadius: 999,
+    fontSize: 10,
+    lineHeight: 1.2,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.01em',
+  } as CSSProperties,
+
+  galleryCardExpiryBadgeWarning: {
+    background: cssVar('warningSubtle'),
+    color: cssVar('warning'),
+    border: `1px solid color-mix(in oklab, ${cssVar('warning')} 22%, transparent)`,
+  } as CSSProperties,
+
+  galleryCardExpiryBadgeDanger: {
+    background: cssVar('dangerSubtle'),
+    color: cssVar('danger'),
+    border: `1px solid color-mix(in oklab, ${cssVar('danger')} 22%, transparent)`,
   } as CSSProperties,
 
   galleryCardPrompt: {

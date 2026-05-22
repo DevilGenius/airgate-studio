@@ -13,6 +13,12 @@ function getStoredToken(): string {
   }
 }
 
+interface ApiEnvelope<T> {
+  code: number;
+  data?: T;
+  message?: string;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = `${baseURL()}${path}`;
   const headers: Record<string, string> = {};
@@ -32,6 +38,20 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new Error(err?.error?.message || `HTTP ${resp.status}`);
   }
   return resp.json();
+}
+
+async function requestCore<T>(path: string): Promise<T> {
+  const resp = await fetch(path, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+  const json = await resp.json().catch(() => null) as ApiEnvelope<T> | null;
+  if (!resp.ok || !json || json.code !== 0) {
+    throw new Error(json?.message || `HTTP ${resp.status}`);
+  }
+  return (json.data ?? ({} as T));
 }
 
 export interface GenerationTask {
@@ -113,5 +133,9 @@ export const api = {
     if (capability) qs.set('capability', capability);
     const suffix = qs.toString() ? `?${qs}` : '';
     return request<{ models: ModelInfo[] }>('GET', `/models${suffix}`).then(r => r.models || []);
+  },
+
+  getPublicSettings(): Promise<Record<string, string>> {
+    return requestCore<Record<string, string>>('/api/v1/settings/public');
   },
 };

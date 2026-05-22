@@ -86,6 +86,10 @@ function taskSize(task: GenerationTask): string | undefined {
   return task.size ?? undefined;
 }
 
+function taskAssetCreatedAt(task: GenerationTask): string {
+  return task.completed_at || task.created_at;
+}
+
 async function delay(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -194,6 +198,7 @@ export interface StudioContextValue {
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void;
+  generatedAssetRetentionDays: number | null;
   previewItem: GalleryItem | null;
   setPreviewItem: (item: GalleryItem | null) => void;
   deleteGalleryItem: (id: string) => void;
@@ -237,6 +242,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [previewItem, setPreviewItem] = useState<GalleryItem | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [generatedAssetRetentionDays, setGeneratedAssetRetentionDays] = useState<number | null>(null);
   const galleryOffsetRef = useRef(0);
 
   const recoveryPromiseRef = useRef<Promise<void> | null>(null);
@@ -257,6 +263,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const PAGE_SIZE = 20;
 
+  useEffect(() => {
+    let active = true;
+    api.getPublicSettings()
+      .then((settings) => {
+        if (!active) return;
+        const raw = settings.asset_retention_generated_days?.trim();
+        const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+        setGeneratedAssetRetentionDays(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+      })
+      .catch(() => {
+        if (active) setGeneratedAssetRetentionDays(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function tasksToGallery(taskList: GenerationTask[]): GalleryItem[] {
     const items: GalleryItem[] = [];
     for (const t of taskList) {
@@ -271,7 +294,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           model: t.model ?? '',
           mode: operationToImageMode(t.operation ?? 'generate'),
           size: taskSize(t),
-          createdAt: t.completed_at || t.updated_at || t.created_at,
+          createdAt: taskAssetCreatedAt(t),
         });
       }
     }
@@ -340,8 +363,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                 prompt: t.prompt,
                 model: t.model ?? '',
                 mode: operationToImageMode(t.operation ?? 'generate'),
-                size: taskSize(t),
-                createdAt: done.completed_at || new Date().toISOString(),
+                size: taskSize(done),
+                createdAt: taskAssetCreatedAt(done),
               })),
               ...prev,
             ]);
@@ -422,7 +445,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                 model: remote.model ?? '',
                 mode: operationToImageMode(remote.operation ?? 'generate'),
                 size: taskSize(remote),
-                createdAt: remote.completed_at || new Date().toISOString(),
+                createdAt: taskAssetCreatedAt(remote),
               })),
               ...prev,
             ]);
@@ -511,7 +534,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
               remoteTaskIds.push(created.id);
               updateTask({ remoteTaskIds: [...remoteTaskIds] });
               const completed = await pollGenerationTask(created.id, signal);
-              return parseMarkdownImages(completed.result_content || '').map(img => ({ ...img, prompt: p, taskId: created.id }));
+              return parseMarkdownImages(completed.result_content || '').map(img => ({
+                ...img,
+                prompt: p,
+                taskId: created.id,
+                createdAt: taskAssetCreatedAt(completed),
+              }));
             });
 
             const settled = await Promise.allSettled(batchTasks);
@@ -529,7 +557,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                     model: selectedModelId,
                     mode,
                     size: imageSize,
-                    createdAt: new Date().toISOString(),
+                    createdAt: img.createdAt,
                   });
                 }
               }
@@ -591,7 +619,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
               model: selectedModelId,
               mode,
               size: imageSize,
-              createdAt: new Date().toISOString(),
+              createdAt: taskAssetCreatedAt(completed),
               // GalleryItem.sourceUrl is single-valued; record the first source
               // so "regenerate" can seed at least one reference. Multi-ref recall
               // would need a schema change to GalleryItem.
@@ -709,6 +737,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     hasMore,
     loadingMore,
     loadMore,
+    generatedAssetRetentionDays,
     previewItem,
     setPreviewItem,
     deleteGalleryItem,

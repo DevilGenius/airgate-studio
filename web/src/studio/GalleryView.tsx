@@ -55,6 +55,40 @@ function buildThumbSrcSet(url: string): string | undefined {
   return `${url}${sep}w=256 256w, ${url}${sep}w=512 512w, ${url} 1024w`;
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function formatCreatedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatRemainingTime(ms: number): string {
+  const safeMs = Math.max(0, ms);
+  const days = Math.floor(safeMs / MS_PER_DAY);
+  if (days >= 1) return `${days} 天`;
+  const hours = Math.ceil(safeMs / (60 * 60 * 1000));
+  if (hours >= 1) return `${hours} 小时`;
+  const minutes = Math.max(1, Math.ceil(safeMs / 60000));
+  return `${minutes} 分钟`;
+}
+
+function getExpiryNotice(createdAt: string, retentionDays: number | null): { tone: 'warning' | 'danger'; remainingLabel: string } | null {
+  if (!retentionDays || retentionDays <= 0) return null;
+  const createdAtMs = Date.parse(createdAt);
+  if (!Number.isFinite(createdAtMs)) return null;
+  const expiresAt = createdAtMs + retentionDays * MS_PER_DAY;
+  const remainingMs = expiresAt - Date.now();
+  if (remainingMs <= 0) {
+    return { tone: 'danger', remainingLabel: '' };
+  }
+  if (remainingMs <= MS_PER_DAY) {
+    return { tone: 'warning', remainingLabel: formatRemainingTime(remainingMs) };
+  }
+  return null;
+}
+
 // Parse "1024x1024" → 1, "1024x768" → 0.75. Returns undefined if unparseable
 // so callers can fall back to letting the image define its own aspect ratio.
 function parseAspectRatio(size: string | undefined): number | undefined {
@@ -278,17 +312,16 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
 
 // ── GalleryCard ─────────────────────────────────────────────────────────────
 
-// Column width is driven by ss.galleryGrid `columns: '200px'`. Keep this in
-// sync if that value changes — used only for the off-screen height estimate.
 const GALLERY_COL_WIDTH = 200;
-// Approximate fixed overlay footprint (size badge + prompt + action row).
-const GALLERY_OVERLAY_HEIGHT = 78;
+const GALLERY_OVERLAY_HEIGHT = 104;
 
 function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
   const { t } = useTranslation();
-  const { setPreviewItem, deleteGalleryItem, useAsReference, regenerate } = useStudio();
+  const { setPreviewItem, deleteGalleryItem, useAsReference, regenerate, generatedAssetRetentionDays } = useStudio();
   const { copied, copy } = useCopyOnClick(item.prompt);
   const aspectRatio = parseAspectRatio(item.size);
+  const createdAtLabel = formatCreatedAt(item.createdAt);
+  const expiryNotice = getExpiryNotice(item.createdAt, generatedAssetRetentionDays);
   const estimatedHeight = aspectRatio
     ? Math.round(GALLERY_COL_WIDTH / aspectRatio) + GALLERY_OVERLAY_HEIGHT
     : 0;
@@ -348,10 +381,29 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
         onClick={() => setPreviewItem(item)}
       />
       <div style={ss.galleryCardOverlay}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={ss.galleryCardMetaRow}>
           {item.size && (
-            <span style={{ fontSize: 10, color: cssVar('textTertiary'), fontFamily: cssVar('fontMono'), opacity: 0.7 }}>{item.size}</span>
+            <span style={ss.galleryCardMetaItem}>{item.size}</span>
           )}
+              <span style={ss.galleryCardMetaItem}>
+                {t('playground.studio_created_at', { defaultValue: '创建于' })}
+                {' '}
+                {createdAtLabel}
+              </span>
+          {expiryNotice && (
+            <span
+              style={{
+                ...ss.galleryCardExpiryBadge,
+                ...(expiryNotice.tone === 'danger' ? ss.galleryCardExpiryBadgeDanger : ss.galleryCardExpiryBadgeWarning),
+              }}
+              >
+                {expiryNotice.tone === 'danger'
+                ? t('playground.studio_asset_expired', { defaultValue: '已过期，请立即保存' })
+                : t('playground.studio_asset_expiring', { defaultValue: '还有 {{time}} 过期，请尽快保存', time: expiryNotice.remainingLabel })}
+              </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {item.prompt && (
             <div
               style={{
