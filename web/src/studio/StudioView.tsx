@@ -794,6 +794,12 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
       {/* Toolbar row */}
       <div style={c.toolbar}>
         <div style={c.toolbarLeft} className="studio-composer-toolbar-left">
+          <a href="/" style={floatNav.btn} className="studio-console-link">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+            </svg>
+            <span className="studio-hide-mobile">{t('playground.studio_console', { defaultValue: '控制台' })}</span>
+          </a>
           <span style={c.modelBadge}>
             <span style={c.modelDot} />
             {currentModel.name}
