@@ -240,14 +240,45 @@ const tpl: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '4px 4px 2px',
+    gap: 8,
   },
-  title: {
+  breadcrumbs: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 0,
+  },
+  breadcrumbLink: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    minWidth: 0,
+    borderRadius: 6,
+    color: cssVar('textTertiary'),
+    fontFamily: cssVar('fontMono'),
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+    padding: '3px 4px',
+    textDecoration: 'none',
+    textTransform: 'uppercase',
+    transition: 'background 0.15s, color 0.15s',
+  },
+  breadcrumbCurrent: {
+    color: cssVar('textTertiary'),
+    fontFamily: cssVar('fontMono'),
     fontSize: 11,
     fontWeight: 700,
-    color: cssVar('textTertiary'),
-    letterSpacing: '0.06em',
+    letterSpacing: '0.04em',
     textTransform: 'uppercase',
-    fontFamily: cssVar('fontMono'),
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  breadcrumbSeparator: {
+    color: cssVar('textTertiary'),
+    fontSize: 11,
+    opacity: 0.45,
+    flexShrink: 0,
   },
   collapseBtn: {
     display: 'inline-flex',
@@ -341,6 +372,35 @@ const tpl: Record<string, CSSProperties> = {
   },
 };
 
+// ── Breadcrumbs ─────────────────────────────────────────────────────────────
+
+type BreadcrumbItem = {
+  href?: string;
+  label: string;
+};
+
+function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
+  return (
+    <nav aria-label="Breadcrumbs" style={tpl.breadcrumbs}>
+      {items.map((item, index) => {
+        const isLast = index === items.length - 1;
+        return (
+          <span key={`${index}-${item.label}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            {item.href && !isLast ? (
+              <a href={item.href} style={tpl.breadcrumbLink} className="studio-console-link">
+                {item.label}
+              </a>
+            ) : (
+              <span style={tpl.breadcrumbCurrent}>{item.label}</span>
+            )}
+            {!isLast && <span aria-hidden="true" style={tpl.breadcrumbSeparator}>/</span>}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
 // ── TopNav (fixed global nav bar) ──────────────────────────────────────────
 
 const floatNav: Record<string, CSSProperties> = {
@@ -419,12 +479,19 @@ function FloatingNav() {
 }
 
 function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: string) => void; onCollapse?: () => void }) {
+  const { t } = useTranslation();
   const categories = [...new Set(INSPIRATIONS.map(i => i.category))];
+  const title = t('playground.studio_inspiration_gallery', { defaultValue: '灵感画廊' });
 
   return (
     <div style={tpl.sidebar} className="studio-gallery">
       <div style={tpl.headerRow}>
-        <div style={tpl.title}>灵感画廊</div>
+        <Breadcrumbs
+          items={[
+            { href: '/', label: t('playground.studio_console', { defaultValue: '控制台' }) },
+            { label: title },
+          ]}
+        />
         {onCollapse && (
           <button
             type="button"
@@ -485,6 +552,7 @@ function CollapsedInspirationStrip({ onExpand }: { onExpand: () => void }) {
 // ── ComposerBar ─────────────────────────────────────────────────────────────
 
 const COUNT_OPTIONS = [1, 2, 3, 4];
+const COMPOSER_TEXTAREA_HEIGHT = 112;
 
 function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: (v: string) => void } | null> }) {
   const { t } = useTranslation();
@@ -707,18 +775,12 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
         onChange={e => setPrompt(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={t('playground.studio_quick_placeholder', { defaultValue: placeholder })}
-        rows={2}
+        rows={5}
       />
 
       {/* Toolbar row */}
       <div style={c.toolbar}>
         <div style={c.toolbarLeft} className="studio-composer-toolbar-left">
-          <a href="/" style={floatNav.btn} className="studio-console-link">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
-            </svg>
-            <span className="studio-hide-mobile">{t('playground.studio_console', { defaultValue: '控制台' })}</span>
-          </a>
           <span style={c.modelBadge}>
             <span style={c.modelDot} />
             {currentModel.name}
@@ -855,8 +917,9 @@ const c: Record<string, CSSProperties> = {
   },
   textarea: {
     width: '100%',
-    minHeight: 40,
-    maxHeight: 160,
+    height: COMPOSER_TEXTAREA_HEIGHT,
+    minHeight: COMPOSER_TEXTAREA_HEIGHT,
+    maxHeight: COMPOSER_TEXTAREA_HEIGHT,
     padding: '8px 14px',
     border: 'none',
     background: 'transparent',
@@ -866,6 +929,7 @@ const c: Record<string, CSSProperties> = {
     resize: 'none',
     outline: 'none',
     lineHeight: 1.6,
+    overflowY: 'auto',
     boxSizing: 'border-box',
   },
   toolbar: {

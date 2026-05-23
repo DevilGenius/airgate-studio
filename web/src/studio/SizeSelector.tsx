@@ -57,6 +57,13 @@ const s: Record<string, CSSProperties> = {
     borderColor: `color-mix(in oklab, ${cssVar('primary')} 30%, transparent)`,
     boxShadow: `0 0 0 3px ${cssVar('primaryGlow')}`,
   },
+  triggerCompact: {
+    height: 26,
+    minHeight: 26,
+    padding: '0 10px',
+    borderRadius: 6,
+    fontSize: 11,
+  },
   dropdown: {
     position: 'fixed',
     zIndex: 999999,
@@ -127,7 +134,7 @@ const sizeHoverCSS = `
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-export function SizeSelector({ value, sizes, onChange, upward }: SizeSelectorProps) {
+export function SizeSelector({ value, sizes, onChange, upward, compact }: SizeSelectorProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -195,10 +202,10 @@ export function SizeSelector({ value, sizes, onChange, upward }: SizeSelectorPro
         ref={triggerRef}
         type="button"
         onClick={handleToggle}
-        style={{ ...s.trigger, ...(open ? s.triggerOpen : {}) }}
+        style={{ ...s.trigger, ...(compact ? s.triggerCompact : {}), ...(open ? s.triggerOpen : {}) }}
         className="studio-size-trigger"
       >
-        {selected?.aspect && <AspectIcon aspect={selected.aspect} />}
+        {selected?.aspect && <AspectIcon aspect={selected.aspect} size={compact ? 14 : 16} />}
         <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {triggerLabel}
         </span>
