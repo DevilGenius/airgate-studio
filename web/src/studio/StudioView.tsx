@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type DragEvent, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cssVar, setTheme, getStoredTheme, type ThemeName } from '@doudou-start/airgate-theme';
+import { PluginBreadcrumbs } from '@doudou-start/airgate-core/plugin-ui';
 import { StudioProvider, useStudio } from './StudioContext';
 import { GalleryView } from './GalleryView';
 import { studioStyles as ss, studioCSS } from './studioStyles';
@@ -242,42 +243,6 @@ const tpl: Record<string, CSSProperties> = {
     padding: '4px 4px 2px',
     gap: 8,
   },
-  breadcrumbs: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 7,
-    minWidth: 0,
-  },
-  breadcrumbLink: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    minWidth: 0,
-    borderRadius: 8,
-    color: cssVar('textTertiary'),
-    fontFamily: cssVar('fontSans'),
-    fontSize: 15,
-    fontWeight: 400,
-    letterSpacing: 0,
-    padding: '4px 5px',
-    textDecoration: 'none',
-    transition: 'background 0.15s, color 0.15s',
-  },
-  breadcrumbCurrent: {
-    color: cssVar('text'),
-    fontFamily: cssVar('fontSans'),
-    fontSize: 15,
-    fontWeight: 400,
-    letterSpacing: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  breadcrumbSeparator: {
-    color: cssVar('textTertiary'),
-    fontSize: 15,
-    opacity: 0.45,
-    flexShrink: 0,
-  },
   collapseBtn: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -383,35 +348,6 @@ const tpl: Record<string, CSSProperties> = {
   },
 };
 
-// ── Breadcrumbs ─────────────────────────────────────────────────────────────
-
-type BreadcrumbItem = {
-  href?: string;
-  label: string;
-};
-
-function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
-  return (
-    <nav aria-label="Breadcrumbs" style={tpl.breadcrumbs}>
-      {items.map((item, index) => {
-        const isLast = index === items.length - 1;
-        return (
-          <span key={`${index}-${item.label}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-            {item.href && !isLast ? (
-              <a href={item.href} style={tpl.breadcrumbLink} className="studio-console-link">
-                {item.label}
-              </a>
-            ) : (
-              <span style={tpl.breadcrumbCurrent}>{item.label}</span>
-            )}
-            {!isLast && <span aria-hidden="true" style={tpl.breadcrumbSeparator}>/</span>}
-          </span>
-        );
-      })}
-    </nav>
-  );
-}
-
 // ── TopNav (fixed global nav bar) ──────────────────────────────────────────
 
 const floatNav: Record<string, CSSProperties> = {
@@ -497,10 +433,11 @@ function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: strin
   return (
     <div style={tpl.sidebar} className="studio-gallery">
       <div style={tpl.headerRow}>
-        <Breadcrumbs
+        <PluginBreadcrumbs
+          pluginName="airgate-studio"
           items={[
-            { href: '/', label: t('playground.studio_console', { defaultValue: '控制台' }) },
-            { label: title },
+            { href: '/', labelKey: 'playground.studio_console', labelFallback: '控制台' },
+            { labelKey: 'playground.studio_inspiration_gallery', labelFallback: title },
           ]}
         />
         {onCollapse && (
