@@ -245,38 +245,36 @@ const tpl: Record<string, CSSProperties> = {
   breadcrumbs: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
     minWidth: 0,
   },
   breadcrumbLink: {
     display: 'inline-flex',
     alignItems: 'center',
     minWidth: 0,
-    borderRadius: 6,
+    borderRadius: 8,
     color: cssVar('textTertiary'),
-    fontFamily: cssVar('fontMono'),
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: '0.02em',
-    padding: '3px 4px',
+    fontFamily: cssVar('fontSans'),
+    fontSize: 15,
+    fontWeight: 400,
+    letterSpacing: 0,
+    padding: '4px 5px',
     textDecoration: 'none',
-    textTransform: 'uppercase',
     transition: 'background 0.15s, color 0.15s',
   },
   breadcrumbCurrent: {
-    color: cssVar('textTertiary'),
-    fontFamily: cssVar('fontMono'),
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase',
+    color: cssVar('text'),
+    fontFamily: cssVar('fontSans'),
+    fontSize: 15,
+    fontWeight: 400,
+    letterSpacing: 0,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
   breadcrumbSeparator: {
     color: cssVar('textTertiary'),
-    fontSize: 11,
+    fontSize: 15,
     opacity: 0.45,
     flexShrink: 0,
   },
@@ -284,31 +282,44 @@ const tpl: Record<string, CSSProperties> = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 22,
-    height: 22,
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    borderRadius: 6,
+    width: 40,
+    minWidth: 40,
+    height: 40,
+    border: 'none',
+    borderRadius: cssVar('radiusSm'),
     background: 'transparent',
-    color: cssVar('textTertiary'),
+    color: cssVar('textSecondary'),
     cursor: 'pointer',
     padding: 0,
-    transition: 'all 0.15s',
+    transition: cssVar('transition'),
+    flexShrink: 0,
   },
   collapsedStrip: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     width: '100%',
     height: '100%',
-    padding: '14px 0',
+    padding: '4px 0 14px',
     border: 'none',
     borderRight: `1px solid ${cssVar('borderSubtle')}`,
     background: cssVar('bgDeep'),
-    color: cssVar('textTertiary'),
+    color: cssVar('textSecondary'),
     cursor: 'pointer',
     fontFamily: 'inherit',
-    transition: 'background 0.15s, color 0.15s',
+    transition: cssVar('transition'),
+  },
+  collapsedStripIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    minWidth: 40,
+    height: 40,
+    borderRadius: cssVar('radiusSm'),
+    color: cssVar('textSecondary'),
+    transition: cssVar('transition'),
   },
   collapsedLabel: {
     fontSize: 10,
@@ -385,7 +396,7 @@ function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
         return (
-          <span key={`${index}-${item.label}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span key={`${index}-${item.label}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
             {item.href && !isLast ? (
               <a href={item.href} style={tpl.breadcrumbLink} className="studio-console-link">
                 {item.label}
@@ -500,7 +511,7 @@ function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: strin
             onClick={onCollapse}
             title="收起灵感画廊"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
@@ -541,9 +552,11 @@ function CollapsedInspirationStrip({ onExpand }: { onExpand: () => void }) {
       className="studio-collapsed-strip"
       title="展开灵感画廊"
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 18l6-6-6-6" />
-      </svg>
+      <span style={tpl.collapsedStripIcon} className="studio-collapse-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </span>
       <span style={tpl.collapsedLabel}>灵感画廊</span>
     </button>
   );

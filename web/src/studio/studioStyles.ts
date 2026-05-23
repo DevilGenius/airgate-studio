@@ -833,7 +833,7 @@ export const studioCSS = `
     transition: flex-basis 0.2s ease;
   }
   .studio-panel-inspiration[data-collapsed="true"] {
-    flex: 0 0 36px;
+    flex: 0 0 48px;
   }
   .studio-panel-inspiration[data-collapsed="true"] .studio-inspiration-content {
     display: none;
@@ -845,10 +845,14 @@ export const studioCSS = `
     background: ${cssVar('bgHover')} !important;
     color: ${cssVar('text')} !important;
   }
+  .studio-collapsed-strip:hover .studio-collapse-icon,
   .studio-collapse-btn:hover {
     background: ${cssVar('bgHover')} !important;
     color: ${cssVar('text')} !important;
-    border-color: ${cssVar('border')} !important;
+  }
+  .studio-collapse-btn svg,
+  .studio-collapse-icon svg {
+    stroke-width: 2.5;
   }
 
   @media (max-width: 1023px) {
