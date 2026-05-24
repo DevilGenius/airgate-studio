@@ -1,7 +1,13 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const SHARED_MODULES = ['react', 'react-dom', 'react/jsx-runtime', 'react-i18next'];
+const SHARED_MODULES = [
+  'react',
+  'react-dom',
+  'react/jsx-runtime',
+  'react-i18next',
+  '@doudou-start/airgate-core/plugin-ui',
+];
 
 function sharedModulesPlugin(): Plugin {
   return {
