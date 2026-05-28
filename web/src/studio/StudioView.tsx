@@ -25,11 +25,18 @@ interface NormalizedRect { x: number; y: number; width: number; height: number }
 function normalizeRect(
   sx: number, sy: number, ex: number, ey: number, cw: number, ch: number,
 ): NormalizedRect {
-  const x = Math.max(0, Math.min(1, Math.min(sx, ex) / cw));
-  const y = Math.max(0, Math.min(1, Math.min(sy, ey) / ch));
-  const w = Math.max(0, Math.min(1, Math.abs(ex - sx) / cw));
-  const h = Math.max(0, Math.min(1, Math.abs(ey - sy) / ch));
-  return { x, y, width: w, height: h };
+  if (cw <= 0 || ch <= 0) return { x: 0, y: 0, width: 0, height: 0 };
+  const clamp = (value: number, max: number) => Math.max(0, Math.min(max, value));
+  const x1 = clamp(sx, cw);
+  const y1 = clamp(sy, ch);
+  const x2 = clamp(ex, cw);
+  const y2 = clamp(ey, ch);
+  return {
+    x: Math.min(x1, x2) / cw,
+    y: Math.min(y1, y2) / ch,
+    width: Math.abs(x2 - x1) / cw,
+    height: Math.abs(y2 - y1) / ch,
+  };
 }
 
 const me: Record<string, CSSProperties> = {
@@ -97,6 +104,7 @@ function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDe
   maskingEnabled?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [sel, setSel] = useState<NormalizedRect | null>(initialSelection);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [liveRect, setLiveRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -107,12 +115,43 @@ function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDe
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  const getRelPos = useCallback((e: ReactMouseEvent): { x: number; y: number } | null => {
-    const el = containerRef.current;
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  const getImageMetrics = useCallback(() => {
+    const container = containerRef.current;
+    const img = imgRef.current;
+    if (!container || !img) return null;
+    const containerRect = container.getBoundingClientRect();
+    const imageRect = img.getBoundingClientRect();
+    const originLeft = containerRect.left + container.clientLeft;
+    const originTop = containerRect.top + container.clientTop;
+    return {
+      offsetX: imageRect.left - originLeft,
+      offsetY: imageRect.top - originTop,
+      width: imageRect.width,
+      height: imageRect.height,
+      imageRect,
+    };
   }, []);
+
+  const getRelPos = useCallback((e: ReactMouseEvent): { x: number; y: number } | null => {
+    const metrics = getImageMetrics();
+    if (!metrics || metrics.width <= 0 || metrics.height <= 0) return null;
+    const clamp = (value: number, max: number) => Math.max(0, Math.min(max, value));
+    return {
+      x: clamp(e.clientX - metrics.imageRect.left, metrics.width),
+      y: clamp(e.clientY - metrics.imageRect.top, metrics.height),
+    };
+  }, [getImageMetrics]);
+
+  const toContainerRect = useCallback((rect: { x: number; y: number; w: number; h: number }) => {
+    const metrics = getImageMetrics();
+    if (!metrics) return null;
+    return {
+      left: metrics.offsetX + rect.x,
+      top: metrics.offsetY + rect.y,
+      width: rect.w,
+      height: rect.h,
+    };
+  }, [getImageMetrics]);
 
   const onDown = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     const pos = getRelPos(e);
@@ -136,22 +175,27 @@ function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDe
   const onUp = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     if (!dragStart) return;
     const pos = getRelPos(e);
-    const el = containerRef.current;
-    if (!pos || !el) { setDragStart(null); setLiveRect(null); return; }
-    const { width, height } = el.getBoundingClientRect();
-    const norm = normalizeRect(dragStart.x, dragStart.y, pos.x, pos.y, width, height);
+    const metrics = getImageMetrics();
+    if (!pos || !metrics) { setDragStart(null); setLiveRect(null); return; }
+    const norm = normalizeRect(dragStart.x, dragStart.y, pos.x, pos.y, metrics.width, metrics.height);
     if (norm.width > 0.01 && norm.height > 0.01) setSel(norm);
     setDragStart(null);
     setLiveRect(null);
-  }, [dragStart, getRelPos]);
+  }, [dragStart, getImageMetrics, getRelPos]);
 
   const overlay = (() => {
     const rect = liveRect
-      ? { left: liveRect.x, top: liveRect.y, width: liveRect.w, height: liveRect.h }
-      : sel && containerRef.current
+      ? toContainerRect(liveRect)
+      : sel
         ? (() => {
-            const { width: cw, height: ch } = containerRef.current.getBoundingClientRect();
-            return { left: sel.x * cw, top: sel.y * ch, width: sel.width * cw, height: sel.height * ch };
+            const metrics = getImageMetrics();
+            if (!metrics) return null;
+            return {
+              left: metrics.offsetX + sel.x * metrics.width,
+              top: metrics.offsetY + sel.y * metrics.height,
+              width: sel.width * metrics.width,
+              height: sel.height * metrics.height,
+            };
           })()
         : null;
     if (!rect || (rect.width < 2 && rect.height < 2)) return null;
@@ -172,7 +216,7 @@ function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDe
         onMouseUp={maskingEnabled ? onUp : undefined}
         onMouseLeave={maskingEnabled ? onUp : undefined}
       >
-        <img src={src} alt="source" style={me.img} />
+        <img ref={imgRef} src={src} alt="source" style={me.img} />
         {maskingEnabled && overlay}
       </div>
       <div style={me.actions} onClick={e => e.stopPropagation()}>
