@@ -90,6 +90,50 @@ function taskAssetCreatedAt(task: GenerationTask): string {
   return task.completed_at || task.created_at;
 }
 
+function galleryItemKey(item: Pick<GalleryItem, 'taskId' | 'url'>): string {
+  return item.taskId != null ? `${item.taskId}:${item.url}` : `url:${item.url}`;
+}
+
+function dedupeGalleryItems(items: GalleryItem[]): GalleryItem[] {
+  const seen = new Set<string>();
+  const out: GalleryItem[] = [];
+  for (const item of items) {
+    const key = galleryItemKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function prependUniqueGalleryItems(prev: GalleryItem[], next: GalleryItem[]): GalleryItem[] {
+  if (next.length === 0) return dedupeGalleryItems(prev);
+  const base = dedupeGalleryItems(prev);
+  const seen = new Set(base.map(galleryItemKey));
+  const unique: GalleryItem[] = [];
+  for (const item of next) {
+    const key = galleryItemKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+  return unique.length === 0 ? base : [...unique, ...base];
+}
+
+function appendUniqueGalleryItems(prev: GalleryItem[], next: GalleryItem[]): GalleryItem[] {
+  if (next.length === 0) return dedupeGalleryItems(prev);
+  const base = dedupeGalleryItems(prev);
+  const seen = new Set(base.map(galleryItemKey));
+  const unique: GalleryItem[] = [];
+  for (const item of next) {
+    const key = galleryItemKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+  return unique.length === 0 ? base : [...base, ...unique];
+}
+
 async function delay(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -317,7 +361,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       ]);
       if (signal.aborted) return;
 
-      setGallery(tasksToGallery(completedTasks));
+      setGallery(dedupeGalleryItems(tasksToGallery(completedTasks)));
       galleryOffsetRef.current = completedTasks.length;
       setHasMore(completedTasks.length < completedTotal);
 
@@ -358,24 +402,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         pollGenerationTask(t.id, signal)
           .then(done => {
             if (signal.aborted) return;
-            const imgs = parseMarkdownImages(done.result_content || '');
-            setGallery(prev => [
-              ...imgs.map(img => ({
-                id: uid(),
-                taskId: t.id,
-                url: img.url,
-                alt: img.alt,
-                prompt: t.prompt,
-                model: t.model ?? '',
-                mode: operationToImageMode(t.operation ?? 'generate'),
-                size: taskSize(done),
-                createdAt: taskAssetCreatedAt(done),
-              })),
-              ...prev,
-            ]);
+            const galleryItems = parseMarkdownImages(done.result_content || '').map(img => ({
+              id: uid(),
+              taskId: t.id,
+              url: img.url,
+              alt: img.alt,
+              prompt: t.prompt,
+              model: t.model ?? '',
+              mode: operationToImageMode(t.operation ?? 'generate'),
+              size: taskSize(done),
+              createdAt: taskAssetCreatedAt(done),
+            }));
+            setGallery(prev => prependUniqueGalleryItems(prev, galleryItems));
             setTasks(prev =>
               prev.map(gt =>
-                gt.id === taskUiId ? { ...gt, status: 'completed' } : gt,
+                gt.id === taskUiId
+                  ? { ...gt, status: 'completed', result: galleryItems, remoteTaskIds: [t.id] }
+                  : gt,
               ),
             );
           })
@@ -414,7 +457,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         status: 'completed',
       });
       const newItems = tasksToGallery(moreTasks);
-      setGallery(prev => [...prev, ...newItems]);
+      setGallery(prev => appendUniqueGalleryItems(prev, newItems));
       galleryOffsetRef.current += moreTasks.length;
       setHasMore(galleryOffsetRef.current < total);
     } catch { /* non-fatal */ }
@@ -439,22 +482,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         try {
           const remote = await api.getGenerationTask(remoteId);
           if (remote.status === 'completed' && remote.result_content) {
-            const imgs = parseMarkdownImages(remote.result_content);
-            setGallery(prev => [
-              ...imgs.map(img => ({
-                id: uid(),
-                taskId: remoteId,
-                url: img.url,
-                alt: img.alt,
-                prompt: remote.prompt,
-                model: remote.model ?? '',
-                mode: operationToImageMode(remote.operation ?? 'generate'),
-                size: taskSize(remote),
-                createdAt: taskAssetCreatedAt(remote),
-              })),
-              ...prev,
-            ]);
-            setTasks(prev => prev.map(gt => gt.id === uiTask.id ? { ...gt, status: 'completed' } : gt));
+            const galleryItems = parseMarkdownImages(remote.result_content).map(img => ({
+              id: uid(),
+              taskId: remoteId,
+              url: img.url,
+              alt: img.alt,
+              prompt: remote.prompt,
+              model: remote.model ?? '',
+              mode: operationToImageMode(remote.operation ?? 'generate'),
+              size: taskSize(remote),
+              createdAt: taskAssetCreatedAt(remote),
+            }));
+            setGallery(prev => prependUniqueGalleryItems(prev, galleryItems));
+            setTasks(prev => prev.map(gt => gt.id === uiTask.id
+              ? { ...gt, status: 'completed', result: galleryItems, remoteTaskIds: [remoteId] }
+              : gt));
           } else if (remote.status === 'failed') {
             setTasks(prev => prev.map(gt => gt.id === uiTask.id
               ? { ...gt, status: 'failed', error: remote.error_message || 'Task failed' }
@@ -570,7 +612,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
             if (allItems.length === 0) throw new Error('Batch generation: all tasks failed');
 
-            setGallery(prev => [...allItems, ...prev]);
+            setGallery(prev => prependUniqueGalleryItems(prev, allItems));
             updateTask({ status: 'completed', result: allItems, remoteTaskIds: [...remoteTaskIds] });
 
           } else {
@@ -633,7 +675,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                 : undefined,
             }));
 
-            setGallery(prev => [...galleryItems, ...prev]);
+            setGallery(prev => prependUniqueGalleryItems(prev, galleryItems));
             updateTask({ status: 'completed', result: galleryItems, remoteTaskIds: [created.id] });
           }
         } catch (err) {
