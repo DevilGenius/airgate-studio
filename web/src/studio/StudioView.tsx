@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type DragEvent, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cssVar, setTheme, getStoredTheme, type ThemeName } from '@doudou-start/airgate-theme';
-import { PluginBreadcrumbs } from '@doudou-start/airgate-core/plugin-ui';
+import { cssVar, setTheme, getStoredTheme, type ThemeName } from '@devilgenius/airgate-theme';
+import { PluginBreadcrumbs } from '@devilgenius/airgate-core/plugin-ui';
 import { StudioProvider, useStudio } from './StudioContext';
 import { GalleryView } from './GalleryView';
 import { studioStyles as ss, studioCSS } from './studioStyles';

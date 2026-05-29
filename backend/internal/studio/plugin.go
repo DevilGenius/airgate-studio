@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	sdk "github.com/DouDOU-start/airgate-sdk/sdkgo"
+	sdk "github.com/DevilGenius/airgate-sdk/sdkgo"
 )
 
 type StudioPlugin struct {

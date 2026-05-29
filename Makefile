@@ -29,7 +29,7 @@ build-backend: sync-webdist ## 构建后端二进制
 # release 与 build-backend 共用 sync-webdist，不再内联 rm/cp 同步逻辑。
 release: sync-webdist ## 编译 Linux amd64 版本（用于上传到 marketplace）
 	mkdir -p bin
-	cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -buildvcs=false -trimpath -ldflags "-X 'github.com/DouDOU-start/airgate-studio/backend/internal/studio.PluginVersion=$${VERSION:-dev}'" -o ../bin/airgate-studio-linux-amd64 .
+	cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -buildvcs=false -trimpath -ldflags "-X 'github.com/DevilGenius/airgate-studio/backend/internal/studio.PluginVersion=$${VERSION:-dev}'" -o ../bin/airgate-studio-linux-amd64 .
 	@echo "构建完成: bin/airgate-studio-linux-amd64"
 
 # sync-webdist：生产构建路径上的"权威"同步点。

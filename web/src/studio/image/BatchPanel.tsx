@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cssVar } from '@doudou-start/airgate-theme';
+import { cssVar } from '@devilgenius/airgate-theme';
 import { useStudio } from '../StudioContext';
 import { CustomSelect } from '../CustomSelect';
 import { SizeSelector } from '../SizeSelector';

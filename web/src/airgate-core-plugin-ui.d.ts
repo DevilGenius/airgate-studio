@@ -1,4 +1,4 @@
-declare module '@doudou-start/airgate-core/plugin-ui' {
+declare module '@devilgenius/airgate-core/plugin-ui' {
   import type { ReactElement } from 'react';
 
   export interface PluginBreadcrumbItem {

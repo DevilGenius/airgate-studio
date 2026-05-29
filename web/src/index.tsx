@@ -1,4 +1,4 @@
-import type { PluginFrontendModule } from '@doudou-start/airgate-theme/plugin';
+import type { PluginFrontendModule } from '@devilgenius/airgate-theme/plugin';
 import StudioPage from './StudioPage';
 
 const plugin: PluginFrontendModule = {

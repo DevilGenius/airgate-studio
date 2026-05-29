@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { cssVar } from '@doudou-start/airgate-theme';
+import { cssVar } from '@devilgenius/airgate-theme';
 
 export const studioStyles: Record<string, CSSProperties> = {
   // ── Layout ────────────────────────────────────────────────────────────────

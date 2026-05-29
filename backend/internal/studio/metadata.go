@@ -1,6 +1,6 @@
 package studio
 
-import sdk "github.com/DouDOU-start/airgate-sdk/sdkgo"
+import sdk "github.com/DevilGenius/airgate-sdk/sdkgo"
 
 const (
 	PluginID   = "airgate-studio"

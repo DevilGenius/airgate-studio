@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	sdk "github.com/DouDOU-start/airgate-sdk/sdkgo"
+	sdk "github.com/DevilGenius/airgate-sdk/sdkgo"
 )
 
 func registerRoutes(p *StudioPlugin, r sdk.RouteRegistrar) {

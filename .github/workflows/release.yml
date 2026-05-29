@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  GOPRIVATE: github.com/DouDOU-start/airgate-sdk
+  GOPRIVATE: github.com/DevilGenius/airgate-sdk
 
 jobs:
   build:
@@ -64,7 +64,7 @@ jobs:
           echo "注入 PluginVersion=${VERSION}"
           mkdir -p bin
           cd backend && go build -buildvcs=false -trimpath \
-            -ldflags "-X 'github.com/DouDOU-start/airgate-studio/backend/internal/studio.PluginVersion=${VERSION}'" \
+            -ldflags "-X 'github.com/DevilGenius/airgate-studio/backend/internal/studio.PluginVersion=${VERSION}'" \
             -o ../bin/airgate-studio-${{ matrix.goos }}-${{ matrix.goarch }} .
 
       - name: 生成 SHA256
