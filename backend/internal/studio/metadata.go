@@ -8,7 +8,7 @@ const (
 )
 
 // PluginVersion 插件版本号；release workflow 会通过 git tag 注入正式版本。
-var PluginVersion = "0.1.0"
+var PluginVersion = "dev"
 
 func buildPluginInfo() sdk.PluginInfo {
 	return sdk.PluginInfo{
