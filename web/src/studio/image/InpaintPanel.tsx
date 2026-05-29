@@ -122,15 +122,19 @@ function normalizeRect(
   containerW: number,
   containerH: number,
 ): NormalizedRect {
-  const x = Math.min(startX, endX) / containerW;
-  const y = Math.min(startY, endY) / containerH;
-  const w = Math.abs(endX - startX) / containerW;
-  const h = Math.abs(endY - startY) / containerH;
+  if (containerW <= 0 || containerH <= 0) {
+    return { x: 0, y: 0, width: 0, height: 0 };
+  }
+  const clamp = (value: number, max: number) => Math.max(0, Math.min(max, value));
+  const x1 = clamp(startX, containerW);
+  const y1 = clamp(startY, containerH);
+  const x2 = clamp(endX, containerW);
+  const y2 = clamp(endY, containerH);
   return {
-    x: Math.max(0, Math.min(1, x)),
-    y: Math.max(0, Math.min(1, y)),
-    width:  Math.max(0, Math.min(1, w)),
-    height: Math.max(0, Math.min(1, h)),
+    x: Math.min(x1, x2) / containerW,
+    y: Math.min(y1, y2) / containerH,
+    width: Math.abs(x2 - x1) / containerW,
+    height: Math.abs(y2 - y1) / containerH,
   };
 }
 
@@ -155,6 +159,7 @@ export function InpaintPanel() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   const canGenerate = prompt.trim().length > 0 && sourceImage !== null;
 
@@ -185,12 +190,43 @@ export function InpaintPanel() {
     if (file) void handleFile(file);
   };
 
-  const getRelativePos = useCallback((e: ReactMouseEvent): { x: number; y: number } | null => {
-    const el = containerRef.current;
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  const getImageMetrics = useCallback(() => {
+    const container = containerRef.current;
+    const img = imgRef.current;
+    if (!container || !img) return null;
+    const containerRect = container.getBoundingClientRect();
+    const imageRect = img.getBoundingClientRect();
+    const originLeft = containerRect.left + container.clientLeft;
+    const originTop = containerRect.top + container.clientTop;
+    return {
+      offsetX: imageRect.left - originLeft,
+      offsetY: imageRect.top - originTop,
+      width: imageRect.width,
+      height: imageRect.height,
+      imageRect,
+    };
   }, []);
+
+  const getRelativePos = useCallback((e: ReactMouseEvent): { x: number; y: number } | null => {
+    const metrics = getImageMetrics();
+    if (!metrics || metrics.width <= 0 || metrics.height <= 0) return null;
+    const clamp = (value: number, max: number) => Math.max(0, Math.min(max, value));
+    return {
+      x: clamp(e.clientX - metrics.imageRect.left, metrics.width),
+      y: clamp(e.clientY - metrics.imageRect.top, metrics.height),
+    };
+  }, [getImageMetrics]);
+
+  const toContainerRect = useCallback((rect: { x: number; y: number; w: number; h: number }) => {
+    const metrics = getImageMetrics();
+    if (!metrics) return null;
+    return {
+      x: metrics.offsetX + rect.x,
+      y: metrics.offsetY + rect.y,
+      width: rect.w,
+      height: rect.h,
+    };
+  }, [getImageMetrics]);
 
   const handleMouseDown = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     if (!sourceImage) return;
@@ -217,34 +253,32 @@ export function InpaintPanel() {
   const handleMouseUp = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     if (!dragState) return;
     const pos = getRelativePos(e);
-    const el = containerRef.current;
-    if (!pos || !el) {
+    const metrics = getImageMetrics();
+    if (!pos || !metrics) {
       setDragState(null);
       setLiveRect(null);
       return;
     }
-    const { width, height } = el.getBoundingClientRect();
-    const norm = normalizeRect(dragState.startX, dragState.startY, pos.x, pos.y, width, height);
+    const norm = normalizeRect(dragState.startX, dragState.startY, pos.x, pos.y, metrics.width, metrics.height);
     if (norm.width > 0.01 && norm.height > 0.01) {
       setSelection(norm);
     }
     setDragState(null);
     setLiveRect(null);
-  }, [dragState, getRelativePos]);
+  }, [dragState, getImageMetrics, getRelativePos]);
 
   const renderSelectionOverlay = () => {
     const rect = liveRect
-      ? { x: liveRect.x, y: liveRect.y, width: liveRect.w, height: liveRect.h }
+      ? toContainerRect(liveRect)
       : selection
         ? (() => {
-            const el = containerRef.current;
-            if (!el) return null;
-            const { width, height } = el.getBoundingClientRect();
+            const metrics = getImageMetrics();
+            if (!metrics) return null;
             return {
-              x: selection.x * width,
-              y: selection.y * height,
-              width: selection.width * width,
-              height: selection.height * height,
+              x: metrics.offsetX + selection.x * metrics.width,
+              y: metrics.offsetY + selection.y * metrics.height,
+              width: selection.width * metrics.width,
+              height: selection.height * metrics.height,
             };
           })()
         : null;
@@ -290,7 +324,7 @@ export function InpaintPanel() {
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <img src={sourceImage} alt="source" style={local.sourceImg} />
+              <img ref={imgRef} src={sourceImage} alt="source" style={local.sourceImg} />
               {renderSelectionOverlay()}
             </div>
 
