@@ -6,7 +6,6 @@ const SHARED_MODULES = [
   'react-dom',
   'react/jsx-runtime',
   'react-i18next',
-  '@devilgenius/airgate-core/plugin-ui',
 ];
 
 function sharedModulesPlugin(): Plugin {

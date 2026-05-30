@@ -5,11 +5,10 @@ export const studioStyles: Record<string, CSSProperties> = {
   // ── Layout ────────────────────────────────────────────────────────────────
 
   layout: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100vw',
-    height: '100vh',
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    minHeight: 0,
     display: 'flex',
     flexDirection: 'row',
     background: cssVar('bgElevated'),
@@ -830,29 +829,6 @@ export const studioCSS = `
 
   .studio-panel-inspiration {
     flex: 0 0 320px;
-    transition: flex-basis 0.2s ease;
-  }
-  .studio-panel-inspiration[data-collapsed="true"] {
-    flex: 0 0 48px;
-  }
-  .studio-panel-inspiration[data-collapsed="true"] .studio-inspiration-content {
-    display: none;
-  }
-  .studio-panel-inspiration:not([data-collapsed="true"]) .studio-inspiration-strip {
-    display: none;
-  }
-  .studio-collapsed-strip:hover {
-    background: ${cssVar('bgHover')} !important;
-    color: ${cssVar('text')} !important;
-  }
-  .studio-collapsed-strip:hover .studio-collapse-icon,
-  .studio-collapse-btn:hover {
-    background: ${cssVar('bgHover')} !important;
-    color: ${cssVar('text')} !important;
-  }
-  .studio-collapse-btn svg,
-  .studio-collapse-icon svg {
-    stroke-width: 2.5;
   }
 
   @media (max-width: 1023px) {
@@ -876,9 +852,6 @@ export const studioCSS = `
     }
     .studio-panel-inspiration .studio-inspiration-content {
       display: block !important;
-    }
-    .studio-panel-inspiration .studio-inspiration-strip {
-      display: none !important;
     }
     .studio-composer-toolbar-left {
       flex-wrap: wrap;

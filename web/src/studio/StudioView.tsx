@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type DragEvent, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cssVar, setTheme, getStoredTheme, type ThemeName } from '@devilgenius/airgate-theme';
-import { PluginBreadcrumbs } from '@devilgenius/airgate-core/plugin-ui';
 import { StudioProvider, useStudio } from './StudioContext';
 import { GalleryView } from './GalleryView';
 import { studioStyles as ss, studioCSS } from './studioStyles';
@@ -287,58 +286,16 @@ const tpl: Record<string, CSSProperties> = {
     padding: '4px 4px 2px',
     gap: 8,
   },
-  collapseBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    minWidth: 40,
-    height: 40,
-    border: 'none',
-    borderRadius: cssVar('radiusSm'),
-    background: 'transparent',
+  headerTitle: {
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
     color: cssVar('textSecondary'),
-    cursor: 'pointer',
-    padding: 0,
-    transition: cssVar('transition'),
-    flexShrink: 0,
-  },
-  collapsedStrip: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 12,
-    width: '100%',
-    height: '100%',
-    padding: '4px 0 14px',
-    border: 'none',
-    borderRight: `1px solid ${cssVar('borderSubtle')}`,
-    background: cssVar('bgDeep'),
-    color: cssVar('textSecondary'),
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: cssVar('transition'),
-  },
-  collapsedStripIcon: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    minWidth: 40,
-    height: 40,
-    borderRadius: cssVar('radiusSm'),
-    color: cssVar('textSecondary'),
-    transition: cssVar('transition'),
-  },
-  collapsedLabel: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: 700,
-    letterSpacing: '0.12em',
-    writingMode: 'vertical-rl',
-    textOrientation: 'mixed',
-    fontFamily: cssVar('fontMono'),
-    textTransform: 'uppercase',
-  } as CSSProperties,
+    letterSpacing: '0.01em',
+  },
   catLabel: {
     fontSize: 10,
     fontWeight: 700,
@@ -392,32 +349,7 @@ const tpl: Record<string, CSSProperties> = {
   },
 };
 
-// ── TopNav (fixed global nav bar) ──────────────────────────────────────────
-
 const floatNav: Record<string, CSSProperties> = {
-  wrap: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 0 12px',
-    flexShrink: 0,
-  },
-  btn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '5px 10px',
-    borderRadius: 8,
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    background: 'transparent',
-    color: cssVar('textTertiary'),
-    fontSize: 11,
-    fontWeight: 500,
-    textDecoration: 'none',
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-  },
   iconBtn: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -434,42 +366,7 @@ const floatNav: Record<string, CSSProperties> = {
   },
 };
 
-function FloatingNav() {
-  const { t } = useTranslation();
-  const [theme, setThemeState] = useState<ThemeName>(() => getStoredTheme());
-
-  const toggleTheme = () => {
-    const next: ThemeName = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    document.documentElement.classList.toggle('light', next === 'light');
-    document.documentElement.classList.toggle('dark', next === 'dark');
-    setThemeState(next);
-  };
-
-  return (
-    <div style={floatNav.wrap}>
-      <a href="/" style={floatNav.btn} className="studio-console-link">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
-        </svg>
-        {t('playground.studio_console', { defaultValue: '控制台' })}
-      </a>
-      <button type="button" style={floatNav.iconBtn} className="studio-console-link" onClick={toggleTheme}>
-        {theme === 'dark' ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-        )}
-      </button>
-    </div>
-  );
-}
-
-function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: string) => void; onCollapse?: () => void }) {
+function InspirationSidebar({ onSelect }: { onSelect: (prompt: string) => void }) {
   const { t } = useTranslation();
   const categories = [...new Set(INSPIRATIONS.map(i => i.category))];
   const title = t('playground.studio_inspiration_gallery', { defaultValue: '灵感画廊' });
@@ -477,26 +374,7 @@ function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: strin
   return (
     <div style={tpl.sidebar} className="studio-gallery">
       <div style={tpl.headerRow}>
-        <PluginBreadcrumbs
-          pluginName="airgate-studio"
-          items={[
-            { href: '/', labelKey: 'playground.studio_console', labelFallback: '控制台' },
-            { labelKey: 'playground.studio_inspiration_gallery', labelFallback: title },
-          ]}
-        />
-        {onCollapse && (
-          <button
-            type="button"
-            style={tpl.collapseBtn}
-            className="studio-console-link studio-collapse-btn"
-            onClick={onCollapse}
-            title="收起灵感画廊"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-        )}
+        <div style={tpl.headerTitle}>{title}</div>
       </div>
       {categories.map(cat => (
         <div key={cat}>
@@ -513,7 +391,7 @@ function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: strin
                 <img src={item.image} alt={item.title} style={tpl.thumb} loading="lazy" />
                 <div style={tpl.cardBottom}>
                   <span style={tpl.cardLabel}>{item.title}</span>
-                  <span style={tpl.useBtn}>使用</span>
+                  <span style={tpl.useBtn}>{t('playground.studio_use_template', { defaultValue: '使用' })}</span>
                 </div>
               </div>
             ))}
@@ -521,25 +399,6 @@ function InspirationSidebar({ onSelect, onCollapse }: { onSelect: (prompt: strin
         </div>
       ))}
     </div>
-  );
-}
-
-function CollapsedInspirationStrip({ onExpand }: { onExpand: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onExpand}
-      style={tpl.collapsedStrip}
-      className="studio-collapsed-strip"
-      title="展开灵感画廊"
-    >
-      <span style={tpl.collapsedStripIcon} className="studio-collapse-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 18l6-6-6-6" />
-        </svg>
-      </span>
-      <span style={tpl.collapsedLabel}>灵感画廊</span>
-    </button>
   );
 }
 
@@ -1170,23 +1029,11 @@ const mobileTabStyle: Record<string, CSSProperties> = {
   },
 };
 
-const GALLERY_COLLAPSE_KEY = 'airgate-studio-gallery-collapsed';
-
 function StudioLayout() {
   const { gallery, tasks } = useStudio();
+  const { t } = useTranslation();
   const promptRef = useRef<{ set: (v: string) => void } | null>(null);
   const [mobileTab, setMobileTab] = useState<'inspiration' | 'create'>('create');
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    try { return localStorage.getItem(GALLERY_COLLAPSE_KEY) === '1'; } catch { return false; }
-  });
-
-  const toggleCollapsed = () => {
-    setCollapsed(prev => {
-      const next = !prev;
-      try { localStorage.setItem(GALLERY_COLLAPSE_KEY, next ? '1' : '0'); } catch { /* ignore */ }
-      return next;
-    });
-  };
 
   const visibleTasks = tasks.filter(tk => tk.status !== 'completed');
   const isEmpty = gallery.length === 0 && visibleTasks.length === 0;
@@ -1198,29 +1045,29 @@ function StudioLayout() {
 
   const mobileTabs = (
     <div style={mobileTabStyle.bar} className="studio-mobile-tabs">
-      <button type="button" style={mobileTab === 'inspiration' ? mobileTabStyle.tabActive : mobileTabStyle.tab} onClick={() => setMobileTab('inspiration')}>灵感</button>
-      <button type="button" style={mobileTab === 'create' ? mobileTabStyle.tabActive : mobileTabStyle.tab} onClick={() => setMobileTab('create')}>创作</button>
+      <button type="button" style={mobileTab === 'inspiration' ? mobileTabStyle.tabActive : mobileTabStyle.tab} onClick={() => setMobileTab('inspiration')}>
+        {t('playground.studio_tab_inspiration', { defaultValue: '灵感' })}
+      </button>
+      <button type="button" style={mobileTab === 'create' ? mobileTabStyle.tabActive : mobileTabStyle.tab} onClick={() => setMobileTab('create')}>
+        {t('playground.studio_tab_create', { defaultValue: '创作' })}
+      </button>
     </div>
   );
 
   const inspirationPanel = (
     <div
       className="studio-panel-inspiration"
-      data-collapsed={collapsed ? 'true' : 'false'}
       style={{ minWidth: 0, overflow: 'hidden' }}
     >
       <div className="studio-inspiration-content" style={{ width: '100%', height: '100%' }}>
-        <InspirationSidebar onSelect={handleTemplate} onCollapse={toggleCollapsed} />
-      </div>
-      <div className="studio-inspiration-strip" style={{ width: '100%', height: '100%' }}>
-        <CollapsedInspirationStrip onExpand={toggleCollapsed} />
+        <InspirationSidebar onSelect={handleTemplate} />
       </div>
     </div>
   );
 
   if (isEmpty) {
     return (
-      <div style={ss.layout} data-mobile-tab={mobileTab}>
+      <div data-full-bleed style={ss.layout} data-mobile-tab={mobileTab}>
         <style>{studioCSS}</style>
         {mobileTabs}
         {inspirationPanel}
@@ -1234,8 +1081,8 @@ function StudioLayout() {
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
               </div>
-              <div style={landing.title}>创作中心</div>
-              <div style={landing.subtitle}>输入提示词，AI 为你生成图片</div>
+              <div style={landing.title}>{t('plugin_pages.studio.title', { defaultValue: '创作中心' })}</div>
+              <div style={landing.subtitle}>{t('playground.studio_landing_subtitle', { defaultValue: '输入提示词，AI 为你生成图片' })}</div>
               <div style={{ width: '100%', maxWidth: 720, marginTop: 16 }}>
                 <ComposerBar promptRef={promptRef} />
               </div>
@@ -1247,7 +1094,7 @@ function StudioLayout() {
   }
 
   return (
-    <div style={ss.layout} data-mobile-tab={mobileTab}>
+    <div data-full-bleed style={ss.layout} data-mobile-tab={mobileTab}>
       <style>{studioCSS}</style>
       {mobileTabs}
       {inspirationPanel}
