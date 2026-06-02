@@ -715,7 +715,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     ]);
     setTasks(prev => prev.filter(t => t.id !== uiId));
     if (remoteIds.length > 0) {
-      setGallery(prev => prev.filter(item => !item.taskId || !remoteIds.includes(item.taskId)));
+      const remoteIdSet = new Set(remoteIds);
+      setGallery(prev => prev.filter(item => !item.taskId || !remoteIdSet.has(item.taskId)));
     }
     for (const remoteId of remoteIds) {
       api.deleteGenerationTask(remoteId).catch(() => {});
