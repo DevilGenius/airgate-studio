@@ -7,7 +7,7 @@ function baseURL(): string {
 function getStoredToken(): string {
   if (typeof window === 'undefined') return '';
   try {
-    return window.localStorage.getItem('token') || '';
+    return window.sessionStorage.getItem('token') || window.localStorage.getItem('token') || '';
   } catch {
     return '';
   }
