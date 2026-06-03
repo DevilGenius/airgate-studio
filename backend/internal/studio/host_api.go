@@ -10,13 +10,13 @@ import (
 )
 
 const (
-	hostMethodTasksCreate  = "tasks.create"
-	hostMethodTasksGet     = "tasks.get"
-	hostMethodTasksList    = "tasks.list"
-	hostMethodTasksDelete  = "tasks.delete"
+	hostMethodTasksCreate   = "tasks.create"
+	hostMethodTasksGet      = "tasks.get"
+	hostMethodTasksList     = "tasks.list"
+	hostMethodTasksDelete   = "tasks.delete"
 	hostMethodPlatformsList = "platforms.list"
-	hostMethodModelsList   = "models.list"
-	hostMethodUsersGet     = "users.get"
+	hostMethodModelsList    = "models.list"
+	hostMethodUsersGet      = "users.get"
 )
 
 func hostInvoke(ctx context.Context, host sdk.Host, method string, payload map[string]interface{}) (map[string]interface{}, error) {
@@ -44,6 +44,7 @@ func hostInvoke(ctx context.Context, host sdk.Host, method string, payload map[s
 
 type hostTask struct {
 	ID           int64                  `json:"id"`
+	UserID       int64                  `json:"user_id"`
 	TaskType     string                 `json:"task_type"`
 	Status       string                 `json:"status"`
 	Progress     int                    `json:"progress"`

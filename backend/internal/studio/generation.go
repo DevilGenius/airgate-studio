@@ -2,6 +2,7 @@ package studio
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -78,7 +79,7 @@ func buildTaskInput(req createGenerationTaskRequest) map[string]interface{} {
 		}
 	}
 	if req.Mask != nil && req.Mask.URL != "" {
-		input["mask"] = req.Mask.URL
+		input["mask"] = strings.TrimSpace(req.Mask.URL)
 	}
 	return input
 }
@@ -152,7 +153,8 @@ func buildGenerationTaskResponse(task *hostTask) map[string]interface{} {
 func extractImageInputs(inputs []generationInput) []string {
 	var images []string
 	for _, input := range inputs {
-		if input.URL == "" {
+		rawURL := strings.TrimSpace(input.URL)
+		if rawURL == "" {
 			continue
 		}
 		if input.Type != "" && input.Type != "image" {
@@ -161,7 +163,41 @@ func extractImageInputs(inputs []generationInput) []string {
 		if input.Role == "mask" {
 			continue
 		}
-		images = append(images, input.URL)
+		images = append(images, rawURL)
 	}
 	return images
+}
+
+func validateGenerationInputURLs(req createGenerationTaskRequest) error {
+	for _, input := range req.Inputs {
+		rawURL := strings.TrimSpace(input.URL)
+		if rawURL == "" {
+			continue
+		}
+		if input.Type != "" && input.Type != "image" {
+			continue
+		}
+		if !isAllowedGenerationImageURL(rawURL) {
+			return fmt.Errorf("invalid image input url")
+		}
+	}
+	if req.Mask != nil {
+		rawURL := strings.TrimSpace(req.Mask.URL)
+		if rawURL != "" && !isAllowedGenerationImageURL(rawURL) {
+			return fmt.Errorf("invalid mask url")
+		}
+	}
+	return nil
+}
+
+func isAllowedGenerationImageURL(rawURL string) bool {
+	lower := strings.ToLower(strings.TrimSpace(rawURL))
+	if strings.HasPrefix(lower, "data:image/") {
+		return true
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https")
 }

@@ -10,12 +10,12 @@ import (
 )
 
 func registerRoutes(p *StudioPlugin, r sdk.RouteRegistrar) {
-	r.Handle(http.MethodPost, "/generation-tasks", p.handleCreateGenerationTask)
-	r.Handle(http.MethodGet, "/generation-tasks", p.handleListGenerationTasks)
-	r.Handle(http.MethodGet, "/generation-tasks/", p.handleGetGenerationTask)
-	r.Handle(http.MethodDelete, "/generation-tasks/", p.handleDeleteGenerationTask)
-	r.Handle(http.MethodGet, "/platforms", p.handleListPlatforms)
-	r.Handle(http.MethodGet, "/models", p.handleListModels)
+	r.Handle(http.MethodPost, "/generation-tasks", p.requireUser(p.handleCreateGenerationTask))
+	r.Handle(http.MethodGet, "/generation-tasks", p.requireUser(p.handleListGenerationTasks))
+	r.Handle(http.MethodGet, "/generation-tasks/", p.requireUser(p.handleGetGenerationTask))
+	r.Handle(http.MethodDelete, "/generation-tasks/", p.requireUser(p.handleDeleteGenerationTask))
+	r.Handle(http.MethodGet, "/platforms", p.requireUser(p.handleListPlatforms))
+	r.Handle(http.MethodGet, "/models", p.requireUser(p.handleListModels))
 }
 
 func (p *StudioPlugin) handleCreateGenerationTask(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,15 @@ func (p *StudioPlugin) handleCreateGenerationTask(w http.ResponseWriter, r *http
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "model is required"})
 		return
 	}
-	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
+	if err := validateGenerationInputURLs(req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	userID, ok := userIDFromRequest(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 
 	taskType := resolveTaskType(req.Kind, req.Operation)
 	input := buildTaskInput(req)
@@ -58,7 +66,11 @@ func (p *StudioPlugin) handleGetGenerationTask(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
+	userID, ok := userIDFromRequest(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 	task, err := hostGetTask(r.Context(), p.host, executorPluginID, userID, taskID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "查询任务失败: " + err.Error()})
@@ -76,7 +88,20 @@ func (p *StudioPlugin) handleDeleteGenerationTask(w http.ResponseWriter, r *http
 		return
 	}
 
-	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
+	userID, ok := userIDFromRequest(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	task, err := hostGetTask(r.Context(), p.host, executorPluginID, userID, taskID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "查询任务失败: " + err.Error()})
+		return
+	}
+	if task.UserID != 0 && task.UserID != userID {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+		return
+	}
 	if err := hostDeleteTask(r.Context(), p.host, executorPluginID, userID, taskID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "删除任务失败: " + err.Error()})
 		return
@@ -86,7 +111,11 @@ func (p *StudioPlugin) handleDeleteGenerationTask(w http.ResponseWriter, r *http
 }
 
 func (p *StudioPlugin) handleListGenerationTasks(w http.ResponseWriter, r *http.Request) {
-	userID, _ := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
+	userID, ok := userIDFromRequest(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
 
 	limit := 20
 	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 100 {
@@ -135,4 +164,24 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
+}
+
+func (p *StudioPlugin) requireUser(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		entry := r.Header.Get("X-Airgate-Entry")
+		if entry != "user" && entry != "admin" {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		if _, ok := userIDFromRequest(r); !ok {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		next(w, r)
+	}
+}
+
+func userIDFromRequest(r *http.Request) (int64, bool) {
+	userID, err := strconv.ParseInt(r.Header.Get("X-Airgate-User-Id"), 10, 64)
+	return userID, err == nil && userID > 0
 }
