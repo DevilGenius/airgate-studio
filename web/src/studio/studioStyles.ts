@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react';
 import { cssVar } from '@devilgenius/airgate-theme';
 
+const STUDIO_COMPOSER_MAX_WIDTH = '68rem';
+
 export const studioStyles: Record<string, CSSProperties> = {
   // ── Layout ────────────────────────────────────────────────────────────────
 
@@ -424,7 +426,7 @@ export const studioStyles: Record<string, CSSProperties> = {
     overflowX: 'hidden',
     padding: '20px',
     boxSizing: 'border-box',
-    background: cssVar('bgElevated'),
+    background: cssVar('bgDeep'),
   } as CSSProperties,
 
   galleryGrid: {
@@ -555,7 +557,7 @@ export const studioStyles: Record<string, CSSProperties> = {
     bottom: 20,
     left: 20,
     right: 20,
-    maxWidth: 900,
+    maxWidth: STUDIO_COMPOSER_MAX_WIDTH,
     margin: '0 auto',
     zIndex: 10,
     display: 'flex',
@@ -829,6 +831,8 @@ export const studioCSS = `
 
   .studio-panel-inspiration {
     flex: 0 0 320px;
+    box-sizing: border-box;
+    border-right: 1px solid ${cssVar('borderSubtle')};
   }
 
   @media (max-width: 1023px) {
