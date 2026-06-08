@@ -1,16 +1,22 @@
 const PLUGIN_ID = 'airgate-studio';
+const AUTH_TOKEN_STORAGE_KEY = 'ag:web:auth:token';
 
 function baseURL(): string {
   return `/api/v1/ext-user/${PLUGIN_ID}`;
 }
 
-function getStoredToken(): string {
+function readBrowserStorage(kind: 'localStorage' | 'sessionStorage', key: string): string {
   if (typeof window === 'undefined') return '';
   try {
-    return window.sessionStorage.getItem('token') || window.localStorage.getItem('token') || '';
+    return window[kind].getItem(key) || '';
   } catch {
     return '';
   }
+}
+
+function getStoredToken(): string {
+  return readBrowserStorage('sessionStorage', AUTH_TOKEN_STORAGE_KEY)
+    || readBrowserStorage('localStorage', AUTH_TOKEN_STORAGE_KEY);
 }
 
 interface ApiEnvelope<T> {
