@@ -1100,3 +1100,13 @@ export function StudioView() {
     </StudioProvider>
   );
 }
+
+export const __studioViewTestUtils = {
+  normalizeRect,
+  readFileAsDataURL,
+  MaskEditor,
+  InspirationSidebar,
+  ComposerBar,
+  StudioLayout,
+  INSPIRATIONS,
+};

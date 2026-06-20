@@ -68,8 +68,9 @@ function formatRemainingTime(ms: number): string {
   const safeMs = Math.max(0, ms);
   const days = Math.floor(safeMs / MS_PER_DAY);
   if (days >= 1) return `${days} 天`;
-  const hours = Math.ceil(safeMs / (60 * 60 * 1000));
-  if (hours >= 1) return `${hours} 小时`;
+  if (safeMs >= 60 * 60 * 1000) {
+    return `${Math.ceil(safeMs / (60 * 60 * 1000))} 小时`;
+  }
   const minutes = Math.max(1, Math.ceil(safeMs / 60000));
   return `${minutes} 分钟`;
 }
@@ -132,6 +133,15 @@ function useCopyOnClick(text: string | undefined | null) {
 
   return { copied, copy };
 }
+
+export const __galleryViewTestUtils = {
+  isLocalRuntimeAsset,
+  buildThumbSrcSet,
+  formatCreatedAt,
+  formatRemainingTime,
+  getExpiryNotice,
+  parseAspectRatio,
+};
 
 // ── TaskCard ────────────────────────────────────────────────────────────────
 

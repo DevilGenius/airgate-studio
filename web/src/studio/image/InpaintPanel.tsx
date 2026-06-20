@@ -138,6 +138,10 @@ function normalizeRect(
   };
 }
 
+export const __inpaintPanelTestUtils = {
+  normalizeRect,
+};
+
 export function InpaintPanel() {
   const { t } = useTranslation();
   const {

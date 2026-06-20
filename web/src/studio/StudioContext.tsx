@@ -267,6 +267,24 @@ export function useStudio(): StudioContextValue {
   return ctx;
 }
 
+export const __studioContextTestUtils = {
+  parseMarkdownImages,
+  uniqueNumbers,
+  operationToImageMode,
+  modeToOperation,
+  taskRemoteIds,
+  resolveGenerationMode,
+  taskSize,
+  taskAssetCreatedAt,
+  galleryItemKey,
+  dedupeGalleryItems,
+  prependUniqueGalleryItems,
+  appendUniqueGalleryItems,
+  delay,
+  createMaskDataUrl,
+  pollGenerationTask,
+};
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function StudioProvider({ children }: { children: ReactNode }) {
@@ -534,6 +552,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
       const controller = new AbortController();
       const signal = controller.signal;
+      abortRef.current = controller;
 
       const taskId = uid();
       const now = new Date().toISOString();
@@ -686,6 +705,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             updateTask({ status: 'failed', error: msg });
           }
         } finally {
+          if (abortRef.current === controller) {
+            abortRef.current = null;
+          }
           activeCountRef.current -= 1;
           if (activeCountRef.current <= 0) {
             activeCountRef.current = 0;
