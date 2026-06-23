@@ -14,10 +14,6 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('@devilgenius/airgate-theme', () => ({
-  cssVar: (name: string) => `var(--ag-${name})`,
-}));
-
 function makeStorage(): Storage {
   const values = new Map<string, string>();
   return {

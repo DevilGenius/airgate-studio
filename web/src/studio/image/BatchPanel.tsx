@@ -1,121 +1,9 @@
-import { useCallback, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cssVar } from '@devilgenius/airgate-theme';
 import { useStudio } from '../StudioContext';
 import { CustomSelect } from '../CustomSelect';
 import { SizeSelector } from '../SizeSelector';
 import { MODEL_REGISTRY } from '../modelConfig';
-import { studioStyles as ss } from '../studioStyles';
-
-const local: Record<string, CSSProperties> = {
-  tabRow: {
-    display: 'flex',
-    gap: 0,
-    borderRadius: 10,
-    overflow: 'hidden',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-  },
-  tab: {
-    flex: 1,
-    padding: '8px 0',
-    border: 'none',
-    background: 'transparent',
-    color: cssVar('textSecondary'),
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.18s',
-  },
-  tabActive: {
-    flex: 1,
-    padding: '8px 0',
-    border: 'none',
-    background: cssVar('bgHover'),
-    color: cssVar('text'),
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-  uploadArea: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    minHeight: 80,
-    padding: 14,
-    border: `1.5px dashed ${cssVar('borderSubtle')}`,
-    borderRadius: 12,
-    cursor: 'pointer',
-    color: cssVar('textTertiary'),
-    fontSize: 12,
-    textAlign: 'center',
-    transition: 'all 0.2s',
-  },
-  thumbGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 6,
-  },
-  thumb: {
-    position: 'relative',
-    aspectRatio: '1',
-    borderRadius: 8,
-    overflow: 'hidden',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-  },
-  thumbImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    display: 'block',
-  },
-  thumbRemove: {
-    position: 'absolute',
-    top: 3,
-    right: 3,
-    width: 18,
-    height: 18,
-    border: 'none',
-    borderRadius: '50%',
-    background: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
-    WebkitBackdropFilter: 'blur(4px)',
-    color: '#fff',
-    fontSize: 11,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-    lineHeight: 1,
-    transition: 'background 0.15s',
-  },
-};
-
-const modelBadge: CSSProperties = {
-  padding: '9px 14px',
-  borderRadius: 10,
-  background: cssVar('bgDeep'),
-  border: `1px solid ${cssVar('borderSubtle')}`,
-  color: cssVar('text'),
-  fontSize: 13,
-  fontFamily: 'inherit',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-};
-
-const modelDot: CSSProperties = {
-  width: 6,
-  height: 6,
-  borderRadius: '50%',
-  background: '#4ade80',
-  flexShrink: 0,
-  boxShadow: '0 0 6px rgba(74, 222, 128, 0.4)',
-};
 
 type BatchMode = 'multi_prompt' | 'multi_image';
 
@@ -179,38 +67,34 @@ export function BatchPanel() {
       : `${t('playground.studio_batch_process', { defaultValue: '批量处理' })} ${images.length} ${t('playground.studio_batch_images', { defaultValue: '张图片' })}`;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={local.tabRow}>
-        <button type="button" style={mode === 'multi_prompt' ? local.tabActive : local.tab} onClick={() => setMode('multi_prompt')}>
+    <div>
+      <div>
+        <button type="button" onClick={() => setMode('multi_prompt')}>
           {t('playground.studio_batch_multi_prompt', { defaultValue: '多提示词' })}
         </button>
-        <button type="button" style={mode === 'multi_image' ? local.tabActive : local.tab} onClick={() => setMode('multi_image')}>
+        <button type="button" onClick={() => setMode('multi_image')}>
           {t('playground.studio_batch_multi_image', { defaultValue: '多图片' })}
         </button>
       </div>
 
       {mode === 'multi_prompt' ? (
-        <div style={ss.formRow}>
-          <label style={ss.formLabel}>{t('playground.studio_batch_prompts', { defaultValue: '批量提示词' })}</label>
+        <div>
+          <label>{t('playground.studio_batch_prompts', { defaultValue: '批量提示词' })}</label>
           <textarea
-            style={{ ...ss.formTextarea, minHeight: 96 }}
-            className="studio-textarea"
             value={multiPrompts}
             onChange={e => setMultiPrompts(e.target.value)}
             placeholder={t('playground.studio_batch_placeholder', { defaultValue: '每行一个提示词...' })}
             rows={5}
           />
-          <div style={ss.formHint}>
+          <div>
             {promptLines.length > 0 ? `共 ${promptLines.length} 个提示词` : t('playground.studio_batch_empty', { defaultValue: '尚未输入提示词' })}
           </div>
         </div>
       ) : (
         <>
-          <div style={ss.formRow}>
-            <label style={ss.formLabel}>{t('playground.studio_batch_upload', { defaultValue: '上传图片' })}</label>
+          <div>
+            <label>{t('playground.studio_batch_upload', { defaultValue: '上传图片' })}</label>
             <div
-              style={local.uploadArea}
-              className="studio-upload-area"
               onClick={() => fileInputRef.current?.click()}
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); addImages(e.dataTransfer.files); }}
@@ -220,25 +104,23 @@ export function BatchPanel() {
               </svg>
               {t('playground.studio_batch_add_images', { defaultValue: '点击或拖拽添加图片' })}
             </div>
-            <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => addImages(e.target.files)} />
+            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={e => addImages(e.target.files)} />
           </div>
 
           {images.length > 0 && (
-            <div style={local.thumbGrid}>
+            <div>
               {images.map(img => (
-                <div key={img.id} style={local.thumb}>
-                  <img src={img.url} alt="" style={local.thumbImg} />
-                  <button type="button" style={local.thumbRemove} onClick={() => removeImage(img.id)}>×</button>
+                <div key={img.id}>
+                  <img src={img.url} alt="" />
+                  <button type="button" onClick={() => removeImage(img.id)}>×</button>
                 </div>
               ))}
             </div>
           )}
 
-          <div style={ss.formRow}>
-            <label style={ss.formLabel}>{t('playground.studio_batch_shared_prompt', { defaultValue: '统一提示词' })}</label>
+          <div>
+            <label>{t('playground.studio_batch_shared_prompt', { defaultValue: '统一提示词' })}</label>
             <textarea
-              style={{ ...ss.formTextarea, minHeight: 72 }}
-              className="studio-textarea"
               value={imagePrompt}
               onChange={e => setImagePrompt(e.target.value)}
               placeholder={t('playground.studio_batch_shared_placeholder', { defaultValue: '对所有图片应用相同的描述...' })}
@@ -248,10 +130,10 @@ export function BatchPanel() {
         </>
       )}
 
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>{t('playground.studio_model', { defaultValue: '模型' })}</label>
+      <div>
+        <label>{t('playground.studio_model', { defaultValue: '模型' })}</label>
         {MODEL_REGISTRY.length === 1 ? (
-          <div style={modelBadge}><span style={modelDot} />{currentModel.name}</div>
+          <div><span />{currentModel.name}</div>
         ) : (
           <CustomSelect
             value={selectedModelId}
@@ -260,8 +142,8 @@ export function BatchPanel() {
           />
         )}
       </div>
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>{t('playground.studio_size', { defaultValue: '尺寸' })}</label>
+      <div>
+        <label>{t('playground.studio_size', { defaultValue: '尺寸' })}</label>
         <SizeSelector
           value={imageSize}
           sizes={currentModel.sizes}
@@ -271,8 +153,6 @@ export function BatchPanel() {
 
       <button
         type="button"
-        style={canGenerate ? ss.formGenerateBtn : ss.formGenerateBtnDisabled}
-        className={canGenerate ? 'studio-gen-btn' : ''}
         disabled={!canGenerate}
         onClick={() => { void handleGenerate(); }}
       >

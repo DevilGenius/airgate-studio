@@ -1,71 +1,9 @@
-import { useRef, useState, type CSSProperties, type DragEvent, type ChangeEvent } from 'react';
+import { useRef, useState, type DragEvent, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cssVar } from '@devilgenius/airgate-theme';
 import { useStudio } from '../StudioContext';
 import { CustomSelect } from '../CustomSelect';
 import { SizeSelector } from '../SizeSelector';
 import { MODEL_REGISTRY } from '../modelConfig';
-import { studioStyles as ss } from '../studioStyles';
-
-const local: Record<string, CSSProperties> = {
-  previewWrapper: {
-    position: 'relative',
-    display: 'inline-flex',
-    borderRadius: 10,
-    overflow: 'hidden',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    alignSelf: 'flex-start',
-  },
-  previewImg: {
-    width: 120,
-    height: 90,
-    objectFit: 'cover',
-    display: 'block',
-  },
-  removeBtn: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 22,
-    height: 22,
-    border: 'none',
-    borderRadius: '50%',
-    background: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
-    WebkitBackdropFilter: 'blur(4px)',
-    color: '#fff',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 13,
-    lineHeight: 1,
-    padding: 0,
-    transition: 'background 0.15s',
-  },
-};
-
-const modelBadge: CSSProperties = {
-  padding: '9px 14px',
-  borderRadius: 10,
-  background: cssVar('bgDeep'),
-  border: `1px solid ${cssVar('borderSubtle')}`,
-  color: cssVar('text'),
-  fontSize: 13,
-  fontFamily: 'inherit',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-};
-
-const modelDot: CSSProperties = {
-  width: 6,
-  height: 6,
-  borderRadius: '50%',
-  background: '#4ade80',
-  flexShrink: 0,
-  boxShadow: '0 0 6px rgba(74, 222, 128, 0.4)',
-};
 
 function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -124,18 +62,17 @@ export function ImageToImagePanel() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+    <div>
+      <div>
+        <label>
           {t('playground.studio_source_image', { defaultValue: '参考图片' })}
         </label>
 
         {sourceImage ? (
-          <div style={local.previewWrapper}>
-            <img src={sourceImage} alt="source" style={local.previewImg} />
+          <div>
+            <img src={sourceImage} alt="source" />
             <button
               type="button"
-              style={local.removeBtn}
               onClick={() => setSourceImage(null)}
               title={t('playground.studio_remove_image', { defaultValue: '移除图片' })}
             >
@@ -144,8 +81,6 @@ export function ImageToImagePanel() {
           </div>
         ) : (
           <div
-            style={isDragging ? ss.formUploadAreaDragging : ss.formUploadArea}
-            className="studio-upload-area"
             onClick={() => fileInputRef.current?.click()}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -169,18 +104,15 @@ export function ImageToImagePanel() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          style={{ display: 'none' }}
           onChange={handleFileInputChange}
         />
       </div>
 
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+      <div>
+        <label>
           {t('playground.studio_prompt', { defaultValue: '提示词' })}
         </label>
         <textarea
-          style={ss.formTextarea}
-          className="studio-textarea"
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           placeholder={t('playground.studio_img2img_placeholder', { defaultValue: '描述你想要的变化...' })}
@@ -188,12 +120,12 @@ export function ImageToImagePanel() {
         />
       </div>
 
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+      <div>
+        <label>
           {t('playground.studio_model', { defaultValue: '模型' })}
         </label>
         {MODEL_REGISTRY.length === 1 ? (
-          <div style={modelBadge}><span style={modelDot} />{currentModel.name}</div>
+          <div><span />{currentModel.name}</div>
         ) : (
           <CustomSelect
             value={selectedModelId}
@@ -203,8 +135,8 @@ export function ImageToImagePanel() {
         )}
       </div>
 
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+      <div>
+        <label>
           {t('playground.studio_size', { defaultValue: '尺寸' })}
         </label>
         <SizeSelector
@@ -216,8 +148,6 @@ export function ImageToImagePanel() {
 
       <button
         type="button"
-        style={canGenerate ? ss.formGenerateBtn : ss.formGenerateBtnDisabled}
-        className={canGenerate ? 'studio-gen-btn' : ''}
         disabled={!canGenerate}
         onClick={() => { void generate(prompt, { mode: 'img2img', sourceImage: sourceImage ?? undefined }); }}
       >

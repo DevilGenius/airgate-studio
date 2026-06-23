@@ -2,18 +2,15 @@ import {
   useRef,
   useState,
   useCallback,
-  type CSSProperties,
   type ChangeEvent,
   type DragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cssVar } from '@devilgenius/airgate-theme';
 import { useStudio } from '../StudioContext';
 import { CustomSelect } from '../CustomSelect';
 import { SizeSelector } from '../SizeSelector';
 import { MODEL_REGISTRY } from '../modelConfig';
-import { studioStyles as ss } from '../studioStyles';
 
 interface NormalizedRect {
   x: number;
@@ -26,84 +23,6 @@ interface DragState {
   startX: number;
   startY: number;
 }
-
-const local: Record<string, CSSProperties> = {
-  canvasContainer: {
-    position: 'relative',
-    display: 'inline-block',
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
-    borderRadius: 10,
-    overflow: 'hidden',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    cursor: 'crosshair',
-    userSelect: 'none',
-    lineHeight: 0,
-  },
-  sourceImg: {
-    display: 'block',
-    width: 'auto',
-    height: 'auto',
-    maxWidth: '100%',
-    maxHeight: 200,
-    pointerEvents: 'none',
-  },
-  selectionRect: {
-    position: 'absolute',
-    border: '2px solid rgba(248, 113, 113, 0.95)',
-    background: 'rgba(248, 113, 113, 0.32)',
-    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.65), 0 0 18px rgba(248, 113, 113, 0.45)',
-    boxSizing: 'border-box',
-    pointerEvents: 'none',
-    borderRadius: 4,
-  },
-  canvasActions: {
-    display: 'flex',
-    gap: 6,
-    marginTop: 6,
-  },
-  actionBtn: {
-    padding: '6px 12px',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    borderRadius: 8,
-    background: 'transparent',
-    color: cssVar('textSecondary'),
-    cursor: 'pointer',
-    fontSize: 11,
-    fontFamily: 'inherit',
-    fontWeight: 500,
-    transition: 'all 0.15s',
-  },
-  selectionHint: {
-    fontSize: 10,
-    color: cssVar('textTertiary'),
-    marginTop: 4,
-    fontFamily: cssVar('fontMono'),
-    letterSpacing: '0.02em',
-  },
-};
-
-const modelBadge: CSSProperties = {
-  padding: '9px 14px',
-  borderRadius: 10,
-  background: cssVar('bgDeep'),
-  border: `1px solid ${cssVar('borderSubtle')}`,
-  color: cssVar('text'),
-  fontSize: 13,
-  fontFamily: 'inherit',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-};
-
-const modelDot: CSSProperties = {
-  width: 6,
-  height: 6,
-  borderRadius: '50%',
-  background: '#4ade80',
-  flexShrink: 0,
-  boxShadow: '0 0 6px rgba(74, 222, 128, 0.4)',
-};
 
 function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -291,13 +210,6 @@ export function InpaintPanel() {
 
     return (
       <div
-        style={{
-          ...local.selectionRect,
-          left: rect.x,
-          top: rect.y,
-          width: rect.width,
-          height: rect.height,
-        }}
       />
     );
   };
@@ -312,9 +224,9 @@ export function InpaintPanel() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+    <div>
+      <div>
+        <label>
           {t('playground.studio_source_image', { defaultValue: '参考图片' })}
         </label>
 
@@ -322,34 +234,31 @@ export function InpaintPanel() {
           <>
             <div
               ref={containerRef}
-              style={local.canvasContainer}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <img ref={imgRef} src={sourceImage} alt="source" style={local.sourceImg} />
+              <img ref={imgRef} src={sourceImage} alt="source" />
               {renderSelectionOverlay()}
             </div>
 
-            <div style={local.canvasActions}>
+            <div>
               <button
                 type="button"
-                style={local.actionBtn}
                 onClick={() => setSelection(null)}
               >
                 {t('playground.studio_clear_selection', { defaultValue: '清除选区' })}
               </button>
               <button
                 type="button"
-                style={local.actionBtn}
                 onClick={() => { setSourceImage(null); setSelection(null); }}
               >
                 {t('playground.studio_remove_image', { defaultValue: '移除图片' })}
               </button>
             </div>
 
-            <div style={local.selectionHint}>
+            <div>
               {selection
                 ? t('playground.studio_selection_set', { defaultValue: '已选定修改区域，拖拽可重新选择' })
                 : t('playground.studio_selection_hint', { defaultValue: '在图片上拖拽选择要修改的区域' })}
@@ -357,8 +266,6 @@ export function InpaintPanel() {
           </>
         ) : (
           <div
-            style={isDragging ? ss.formUploadAreaDragging : ss.formUploadArea}
-            className="studio-upload-area"
             onClick={() => fileInputRef.current?.click()}
             onDragOver={handleDropzoneDragOver}
             onDragLeave={handleDropzoneDragLeave}
@@ -382,18 +289,15 @@ export function InpaintPanel() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          style={{ display: 'none' }}
           onChange={handleFileInputChange}
         />
       </div>
 
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+      <div>
+        <label>
           {t('playground.studio_prompt', { defaultValue: '提示词' })}
         </label>
         <textarea
-          style={ss.formTextarea}
-          className="studio-textarea"
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           placeholder={t('playground.studio_inpaint_placeholder', { defaultValue: '描述要修改的区域...' })}
@@ -401,12 +305,12 @@ export function InpaintPanel() {
         />
       </div>
 
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+      <div>
+        <label>
           {t('playground.studio_model', { defaultValue: '模型' })}
         </label>
         {MODEL_REGISTRY.length === 1 ? (
-          <div style={modelBadge}><span style={modelDot} />{currentModel.name}</div>
+          <div><span />{currentModel.name}</div>
         ) : (
           <CustomSelect
             value={selectedModelId}
@@ -416,8 +320,8 @@ export function InpaintPanel() {
         )}
       </div>
 
-      <div style={ss.formRow}>
-        <label style={ss.formLabel}>
+      <div>
+        <label>
           {t('playground.studio_size', { defaultValue: '尺寸' })}
         </label>
         <SizeSelector
@@ -429,8 +333,6 @@ export function InpaintPanel() {
 
       <button
         type="button"
-        style={canGenerate ? ss.formGenerateBtn : ss.formGenerateBtnDisabled}
-        className={canGenerate ? 'studio-gen-btn' : ''}
         disabled={!canGenerate}
         onClick={handleGenerate}
       >

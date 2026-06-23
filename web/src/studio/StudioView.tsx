@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type DragEvent, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type DragEvent, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cssVar } from '@devilgenius/airgate-theme';
 import { StudioProvider, useStudio } from './StudioContext';
 import { GalleryView } from './GalleryView';
-import { studioStyles as ss, studioCSS } from './studioStyles';
 import { SizeSelector } from './SizeSelector';
+import styles from './StudioView.module.css';
 
 const STUDIO_COMPOSER_MAX_WIDTH = '68rem';
 
@@ -39,62 +38,6 @@ function normalizeRect(
     height: Math.abs(y2 - y1) / ch,
   };
 }
-
-const me: Record<string, CSSProperties> = {
-  overlay: {
-    position: 'fixed', inset: 0, zIndex: 1100,
-    background: 'rgba(0,0,0,0.82)',
-    display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center',
-    gap: 14, padding: 40,
-  },
-  hint: {
-    fontSize: 12, color: 'rgba(255,255,255,0.5)',
-    fontFamily: 'inherit', letterSpacing: '0.01em',
-    userSelect: 'none',
-  },
-  canvas: {
-    position: 'relative', borderRadius: 10, overflow: 'hidden',
-    cursor: 'crosshair', userSelect: 'none', lineHeight: 0,
-    boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-  },
-  img: {
-    display: 'block', maxWidth: '70vw', maxHeight: '60vh',
-    objectFit: 'contain', pointerEvents: 'none',
-  },
-  selRect: {
-    position: 'absolute',
-    border: '2px solid rgba(248,113,113,0.95)',
-    background: 'rgba(248,113,113,0.32)',
-    boxShadow: '0 0 0 9999px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.65), 0 0 18px rgba(248,113,113,0.45)',
-    borderRadius: 4, pointerEvents: 'none', boxSizing: 'border-box',
-  } as CSSProperties,
-  actions: {
-    display: 'flex', gap: 8,
-  },
-  btn: {
-    padding: '8px 20px', border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 10, background: 'rgba(255,255,255,0.08)',
-    color: '#fff', fontSize: 13, fontWeight: 600,
-    cursor: 'pointer', fontFamily: 'inherit',
-    transition: 'background 0.15s',
-  },
-  btnPrimary: {
-    padding: '8px 20px', border: 'none',
-    borderRadius: 10, background: cssVar('primary'),
-    color: cssVar('primaryForeground'), fontSize: 13, fontWeight: 600,
-    cursor: 'pointer', fontFamily: 'inherit',
-    transition: 'opacity 0.15s',
-  },
-  btnDanger: {
-    padding: '8px 20px', border: '1px solid rgba(248,113,113,0.3)',
-    borderRadius: 10, background: 'transparent',
-    color: '#f87171', fontSize: 13, fontWeight: 600,
-    cursor: 'pointer', fontFamily: 'inherit',
-    transition: 'background 0.15s',
-    marginRight: 'auto',
-  },
-};
 
 function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDelete, maskingEnabled = true }: {
   src: string;
@@ -200,36 +143,35 @@ function MaskEditor({ src, selection: initialSelection, onConfirm, onClose, onDe
           })()
         : null;
     if (!rect || (rect.width < 2 && rect.height < 2)) return null;
-    return <div style={{ ...me.selRect, ...rect }} />;
+    return <div />;
   })();
 
   return (
-    <div style={me.overlay} onClick={onClose}>
+    <div onClick={onClose}>
       {maskingEnabled && (
-        <div style={me.hint}>在图片上拖拽框选要局部修改的区域，不框选则为整图变换</div>
+        <div>在图片上拖拽框选要局部修改的区域，不框选则为整图变换</div>
       )}
       <div
         ref={containerRef}
-        style={maskingEnabled ? me.canvas : { ...me.canvas, cursor: 'default' }}
         onClick={e => e.stopPropagation()}
         onMouseDown={maskingEnabled ? onDown : undefined}
         onMouseMove={maskingEnabled ? onMove : undefined}
         onMouseUp={maskingEnabled ? onUp : undefined}
         onMouseLeave={maskingEnabled ? onUp : undefined}
       >
-        <img ref={imgRef} src={src} alt="source" style={me.img} />
+        <img ref={imgRef} src={src} alt="source" />
         {maskingEnabled && overlay}
       </div>
-      <div style={me.actions} onClick={e => e.stopPropagation()}>
+      <div onClick={e => e.stopPropagation()}>
         {onDelete && (
-          <button type="button" style={me.btnDanger} onClick={onDelete}>删除图片</button>
+          <button type="button" onClick={onDelete}>删除图片</button>
         )}
         {maskingEnabled && sel && (
-          <button type="button" style={me.btn} onClick={() => setSel(null)}>清除选区</button>
+          <button type="button" onClick={() => setSel(null)}>清除选区</button>
         )}
-        <button type="button" style={me.btn} onClick={onClose}>{maskingEnabled ? '取消' : '关闭'}</button>
+        <button type="button" onClick={onClose}>{maskingEnabled ? '取消' : '关闭'}</button>
         {maskingEnabled && (
-          <button type="button" style={me.btnPrimary} onClick={() => onConfirm(sel)}>确定</button>
+          <button type="button" onClick={() => onConfirm(sel)}>确定</button>
         )}
       </div>
     </div>
@@ -247,7 +189,6 @@ interface Inspiration {
 
 const INSPIRATIONS: Inspiration[] = [
   { category: '电商', title: '微缩护肤品广告', image: '/plugins/airgate-studio/assets/inspirations/skincare-diorama.jpg', prompt: 'A hyper-realistic miniature diorama product advertisement featuring an oversized luxury skincare pump bottle placed on a circular platform. Tiny figurine construction workers in yellow coveralls and white hard hats swarm around the bottle — climbing scaffolding, painting with rollers, operating a tower crane, working near industrial tanks. Warm beige, cream, gold, mustard yellow palette. Studio photography, soft diffused lighting, clean beige background. Tilt-shift miniature aesthetic, ultra-detailed, commercial product photography, 8K resolution, photorealistic CGI render.' },
-  { category: '电商', title: '汉堡广告分镜', image: '/plugins/airgate-studio/assets/inspirations/burger-storyboard.jpg', prompt: 'Create a cinematic hero image of a gourmet cheeseburger on a dark stone surface with glossy brioche bun, melted cheese, crisp lettuce, tomato, grilled patty, sauce, realistic texture, appetizing steam, warm side light, shallow depth of field, premium food commercial style.' },
   { category: '广告', title: '奢华手表广告', image: '/plugins/airgate-studio/assets/inspirations/luxury-watch.jpg', prompt: 'A dramatic luxury product advertising image for a motorsport-inspired chronograph wristwatch in a dark studio. Stainless steel chronograph watch at a three-quarter angle, black dial, red-accent subdials, tachymeter bezel. Black leather strap with bold red stitching. Deep black background with cinematic red and white horizontal light streaks suggesting speed. Glossy wet ground plane with reflective texture. Ultra-polished commercial product photography, luxury watch campaign.' },
   { category: '广告', title: '巧克力品牌广告', image: '/plugins/airgate-studio/assets/inspirations/chocolate-brand.jpg', prompt: 'Create a premium square product advertisement for a fictional luxury chocolate brand. High-end editorial campaign combining luxury food photography, refined packaging design, and cinematic lighting. Matte black wrapper, subtle gold foil, elegant serif typography, realistic product rendering. Chocolate bar as hero centerpiece with subtle reflections, shallow depth of field, luxury minimalism.' },
   { category: '广告', title: '汉堡英雄海报', image: '/plugins/airgate-studio/assets/inspirations/burger-hero.jpg', prompt: 'A cinematic 9:16 vertical composition featuring a gourmet burger. A towering burger with a charcoal brioche bun, thick Wagyu beef patty with visible sear marks, melting aged gruyère dripping like lava, crispy maple-glazed bacon. Dark moody lighting with warm amber spotlight. The burger in a "deconstructed gravity" moment — top bun slightly hovering. Ultra-bold distressed sans-serif typeface "DEFY GRAVITY". 4K resolution, macro photography, neon-noir color grading.' },
@@ -270,144 +211,48 @@ const INSPIRATIONS: Inspiration[] = [
 
 // ── InspirationSidebar ─────────────────────────────────────────────────────────
 
-const tpl: Record<string, CSSProperties> = {
-  sidebar: {
-    height: '100%',
-    overflowY: 'auto',
-    overflowX: 'hidden',
-    padding: '12px 14px 24px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    background: cssVar('bgDeep'),
-  },
-  headerRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '4px 4px 2px',
-    gap: 8,
-  },
-  headerTitle: {
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    color: cssVar('textSecondary'),
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: '0.01em',
-  },
-  catLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: cssVar('textTertiary'),
-    letterSpacing: '0.04em',
-    padding: '8px 4px 6px',
-    fontFamily: cssVar('fontMono'),
-    opacity: 0.6,
-  },
-  grid: {
-    columns: '160px',
-    columnGap: 10,
-  } as CSSProperties,
-  card: {
-    borderRadius: 10,
-    overflow: 'hidden',
-    cursor: 'pointer',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.06)',
-    transition: 'all 0.15s',
-    background: cssVar('bgElevated'),
-    breakInside: 'avoid',
-    marginBottom: 10,
-  } as CSSProperties,
-  thumb: {
-    width: '100%',
-    display: 'block',
-    objectFit: 'cover',
-  },
-  cardBottom: {
-    padding: '5px 8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cardLabel: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: cssVar('textSecondary'),
-    letterSpacing: '0.01em',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  useBtn: {
-    fontSize: 10,
-    color: cssVar('primary'),
-    fontWeight: 600,
-    flexShrink: 0,
-    cursor: 'pointer',
-  },
-};
-
-const floatNav: Record<string, CSSProperties> = {
-  iconBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    background: 'transparent',
-    color: cssVar('textTertiary'),
-    cursor: 'pointer',
-    padding: 0,
-    transition: 'all 0.15s',
-  },
-};
-
 function InspirationSidebar({ onSelect }: { onSelect: (prompt: string) => void }) {
   const { t } = useTranslation();
   const categories = [...new Set(INSPIRATIONS.map(i => i.category))];
   const title = t('playground.studio_inspiration_gallery', { defaultValue: '灵感画廊' });
 
   return (
-    <div style={tpl.sidebar} className="studio-gallery">
-      <div style={tpl.headerRow}>
-        <div style={tpl.headerTitle}>{title}</div>
+    <aside className={styles.inspirationSidebar} aria-label={title}>
+      <div className={styles.sidebarHeader}>
+        <div className={styles.sidebarTitle}>{title}</div>
       </div>
       {categories.map(cat => (
-        <div key={cat}>
-          <div style={tpl.catLabel}>{cat}</div>
-          <div style={tpl.grid}>
+        <section className={styles.categorySection} key={cat}>
+          <div className={styles.categoryTitle}>{cat}</div>
+          <div className={styles.cardList}>
             {INSPIRATIONS.filter(i => i.category === cat).map(item => (
-              <div
+              <button
+                type="button"
+                className={styles.inspirationCard}
                 key={item.title}
-                style={tpl.card}
-                className="studio-template-card"
                 onClick={() => onSelect(item.prompt)}
                 title={item.prompt.slice(0, 100) + '...'}
               >
-                <img src={item.image} alt={item.title} style={tpl.thumb} loading="lazy" />
-                <div style={tpl.cardBottom}>
-                  <span style={tpl.cardLabel}>{item.title}</span>
-                  <span style={tpl.useBtn}>{t('playground.studio_use_template', { defaultValue: '使用' })}</span>
-                </div>
-              </div>
+                <span className={styles.cardImageFrame}>
+                  <img className={styles.cardImage} src={item.image} alt={item.title} loading="lazy" />
+                </span>
+                <span className={styles.cardMeta}>
+                  <span className={styles.cardTitle}>{item.title}</span>
+                  <span className={styles.cardAction}>{t('playground.studio_use_template', { defaultValue: '使用' })}</span>
+                </span>
+              </button>
             ))}
           </div>
-        </div>
+        </section>
       ))}
-    </div>
+    </aside>
   );
 }
 
 // ── ComposerBar ─────────────────────────────────────────────────────────────
 
 const COUNT_OPTIONS = [1, 2, 3, 4];
-const COMPOSER_TEXTAREA_HEIGHT = 112;
+const COMPOSER_TEXTAREA_HEIGHT = 96;
 
 function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: (v: string) => void } | null> }) {
   const { t } = useTranslation();
@@ -553,47 +398,37 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
 
   return (
     <div
-      style={isDragging ? { ...c.card, ...c.cardDragging } : c.card}
-      className="studio-quick-input"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Source image thumbnails */}
       {hasSource && (
-        <div style={c.sourceStrip}>
+        <div>
           {allSources.map((src, i) => (
-            <div key={i} style={c.thumbWrap} onClick={() => setEditorIndex(i)}>
+            <div key={i} onClick={() => setEditorIndex(i)}>
               <img
                 src={src}
                 alt="source"
-                style={c.thumbImg}
               />
               {isSingleSource && selection && (
                 <div
-                  style={{
-                    ...c.thumbMaskOverlay,
-                    left: `${selection.x * 100}%`,
-                    top: `${selection.y * 100}%`,
-                    width: `max(${selection.width * 100}%, 10px)`,
-                    height: `max(${selection.height * 100}%, 10px)`,
-                  }}
                   title="已选区"
                 />
               )}
             </div>
           ))}
           {allSources.length > 1 && (
-            <button type="button" style={c.sourceActionBtn} className="studio-gallery-action" onClick={clearAllSources}>
+            <button type="button" onClick={clearAllSources}>
               {t('playground.studio_clear_all', { defaultValue: '清除全部' })}
             </button>
           )}
           {isSingleSource && selection && (
-            <button type="button" style={c.sourceActionBtn} className="studio-gallery-action" onClick={() => setSelection(null)}>
+            <button type="button" onClick={() => setSelection(null)}>
               {t('playground.studio_clear_selection', { defaultValue: '清除选区' })}
             </button>
           )}
-          {modeHint && <span style={c.modeHint}>{modeHint}</span>}
+          {modeHint && <span>{modeHint}</span>}
         </div>
       )}
       {editorIndex !== null && allSources[editorIndex] && (
@@ -612,12 +447,11 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
           }}
         />
       )}
-      <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileInput} />
+      <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} />
 
       {/* Prompt textarea */}
       <textarea
         ref={textareaRef}
-        style={c.textarea}
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -626,19 +460,17 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
       />
 
       {/* Toolbar row */}
-      <div style={c.toolbar}>
-        <div style={c.toolbarLeft} className="studio-composer-toolbar-left">
-          <span style={c.modelBadge}>
-            <span style={c.modelDot} />
+      <div>
+        <div>
+          <span>
+            <span />
             {currentModel.name}
           </span>
-          <div style={c.sizePicker}>
+          <div>
             <SizeSelector value={imageSize} sizes={currentModel.sizes} onChange={setImageSize} upward compact />
           </div>
           <button
             type="button"
-            style={c.imgUploadBtn}
-            className="studio-gallery-action"
             onClick={() => fileInputRef.current?.click()}
             title={t('playground.studio_add_reference', { defaultValue: '添加参考图' })}
           >
@@ -646,12 +478,11 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
               <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
             </svg>
           </button>
-          <div style={c.countGroup}>
+          <div>
             {COUNT_OPTIONS.map(n => (
               <button
                 key={n}
                 type="button"
-                style={count === n ? c.countBtnActive : c.countBtn}
                 onClick={() => setCount(n)}
               >
                 {n}
@@ -661,11 +492,6 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
         </div>
         <button
           type="button"
-          style={{
-            ...c.sendBtn,
-            ...(canSend ? {} : c.sendBtnDisabled),
-          }}
-          className={canSend ? 'studio-send-btn' : ''}
           onClick={handleSend}
           disabled={!canSend}
         >
@@ -680,337 +506,6 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
 }
 
 // ── ComposerBar styles ──────────────────────────────────────────────────────
-
-const c: Record<string, CSSProperties> = {
-  card: {
-    width: '100%',
-    maxWidth: STUDIO_COMPOSER_MAX_WIDTH,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 0,
-    padding: '6px 6px 10px',
-    borderRadius: 20,
-    background: cssVar('bgElevated'),
-    border: `1px solid ${cssVar('glassBorder')}`,
-    boxShadow: '0 8px 48px rgba(0, 0, 0, 0.4), 0 2px 12px rgba(0, 0, 0, 0.2)',
-    transition: 'box-shadow 0.3s, border-color 0.15s',
-  },
-  cardDragging: {
-    borderColor: cssVar('primary'),
-    boxShadow: `0 0 0 2px ${cssVar('primaryGlow')}, 0 8px 48px rgba(0, 0, 0, 0.4)`,
-  },
-  sourceStrip: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '6px 12px 2px',
-  },
-  thumbWrap: {
-    position: 'relative',
-    borderRadius: 8,
-    overflow: 'hidden',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    cursor: 'pointer',
-    lineHeight: 0,
-    flexShrink: 0,
-  },
-  thumbImg: {
-    display: 'block',
-    height: 48,
-    width: 'auto',
-    maxWidth: 100,
-    objectFit: 'cover',
-    pointerEvents: 'none',
-  },
-  thumbMaskOverlay: {
-    position: 'absolute',
-    borderRadius: 3,
-    border: '2px solid rgba(248, 113, 113, 0.95)',
-    background: 'rgba(248, 113, 113, 0.42)',
-    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.65), 0 0 12px rgba(248, 113, 113, 0.65)',
-    boxSizing: 'border-box',
-    pointerEvents: 'none',
-  },
-  sourceActionBtn: {
-    padding: '3px 8px',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    borderRadius: 5,
-    background: 'transparent',
-    color: cssVar('textTertiary'),
-    cursor: 'pointer',
-    fontSize: 10,
-    fontFamily: 'inherit',
-    fontWeight: 500,
-    transition: 'all 0.15s',
-  },
-  modeHint: {
-    marginLeft: 'auto',
-    fontSize: 10,
-    color: cssVar('textTertiary'),
-    fontFamily: cssVar('fontMono'),
-    letterSpacing: '0.02em',
-    opacity: 0.6,
-  },
-  textarea: {
-    width: '100%',
-    height: COMPOSER_TEXTAREA_HEIGHT,
-    minHeight: COMPOSER_TEXTAREA_HEIGHT,
-    maxHeight: COMPOSER_TEXTAREA_HEIGHT,
-    padding: '8px 14px',
-    border: 'none',
-    background: 'transparent',
-    color: cssVar('text'),
-    fontSize: 14,
-    fontFamily: 'inherit',
-    resize: 'none',
-    outline: 'none',
-    lineHeight: 1.6,
-    overflowY: 'auto',
-    boxSizing: 'border-box',
-  },
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    padding: '2px 8px 0',
-  },
-  toolbarLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-    minWidth: 0,
-    overflow: 'hidden',
-  },
-  modelBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '4px 10px',
-    borderRadius: 7,
-    background: cssVar('bgHover'),
-    color: cssVar('textSecondary'),
-    fontSize: 11,
-    fontFamily: cssVar('fontMono'),
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  },
-  modelDot: {
-    width: 5,
-    height: 5,
-    borderRadius: '50%',
-    background: '#4ade80',
-    flexShrink: 0,
-    boxShadow: '0 0 5px rgba(74, 222, 128, 0.4)',
-  },
-  sizePicker: {
-    flexShrink: 0,
-    width: 180,
-  },
-  countGroup: {
-    display: 'flex',
-    gap: 2,
-    flexShrink: 0,
-  },
-  countBtn: {
-    width: 26,
-    height: 26,
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    borderRadius: 6,
-    background: 'transparent',
-    color: cssVar('textSecondary'),
-    cursor: 'pointer',
-    fontSize: 11,
-    fontFamily: 'inherit',
-    fontVariantNumeric: 'tabular-nums',
-    transition: 'all 0.15s',
-    padding: 0,
-  },
-  countBtnActive: {
-    width: 26,
-    height: 26,
-    border: `1px solid color-mix(in oklab, ${cssVar('primary')} 40%, transparent)`,
-    borderRadius: 6,
-    background: cssVar('primarySubtle'),
-    color: cssVar('text'),
-    cursor: 'pointer',
-    fontSize: 11,
-    fontFamily: 'inherit',
-    fontWeight: 700,
-    fontVariantNumeric: 'tabular-nums',
-    transition: 'all 0.15s',
-    padding: 0,
-  },
-  batchHint: {
-    fontSize: 11,
-    color: cssVar('textTertiary'),
-    fontFamily: cssVar('fontMono'),
-    whiteSpace: 'nowrap',
-  },
-  consoleLink: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '4px 8px',
-    borderRadius: 6,
-    color: cssVar('textTertiary'),
-    fontSize: 11,
-    fontWeight: 500,
-    textDecoration: 'none',
-    fontFamily: 'inherit',
-    transition: 'color 0.15s',
-    flexShrink: 0,
-    whiteSpace: 'nowrap',
-  },
-  imgUploadBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 30,
-    height: 26,
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    borderRadius: 6,
-    background: 'transparent',
-    color: cssVar('textTertiary'),
-    cursor: 'pointer',
-    padding: 0,
-    flexShrink: 0,
-    transition: 'all 0.15s',
-  },
-  sendBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 34,
-    height: 34,
-    border: 'none',
-    borderRadius: 10,
-    background: cssVar('primary'),
-    color: cssVar('primaryForeground'),
-    cursor: 'pointer',
-    flexShrink: 0,
-    padding: 0,
-    transition: 'all 0.2s',
-    boxShadow: `0 0 12px ${cssVar('primaryGlow')}`,
-  },
-  sendBtnDisabled: {
-    background: cssVar('bgHover'),
-    color: cssVar('textTertiary'),
-    cursor: 'not-allowed',
-    boxShadow: 'none',
-    opacity: 0.4,
-  },
-};
-
-// ── Landing ─────────────────────────────────────────────────────────────────
-
-const landing: Record<string, CSSProperties> = {
-  wrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    background: cssVar('bgDeep'),
-    overflow: 'hidden',
-  },
-  center: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    padding: '40px 32px 0',
-    userSelect: 'none',
-  },
-  iconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 24,
-    background: 'radial-gradient(circle at 40% 35%, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 70%, transparent 100%)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: cssVar('text'),
-    letterSpacing: '-0.02em',
-  },
-  subtitle: {
-    fontSize: 13,
-    color: cssVar('textTertiary'),
-    opacity: 0.5,
-  },
-  bottom: {
-    flexShrink: 0,
-    display: 'flex',
-    justifyContent: 'center',
-    padding: '24px 24px 32px',
-  },
-};
-
-// ── Gallery mode ────────────────────────────────────────────────────────────
-
-const galleryLayout: Record<string, CSSProperties> = {
-  wrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    background: cssVar('bgDeep'),
-    overflow: 'hidden',
-  },
-  composerWrap: {
-    flexShrink: 0,
-    padding: '12px 20px 16px',
-    display: 'flex',
-    justifyContent: 'center',
-    background: cssVar('bgDeep'),
-  },
-};
-
-// ── StudioLayout ────────────────────────────────────────────────────────────
-
-const mobileTabStyle: Record<string, CSSProperties> = {
-  bar: {
-    display: 'none',
-    gap: 0,
-    borderBottom: `1px solid ${cssVar('borderSubtle')}`,
-    background: cssVar('bgDeep'),
-    flexShrink: 0,
-  },
-  tab: {
-    flex: 1,
-    padding: '10px 0',
-    border: 'none',
-    background: 'transparent',
-    color: cssVar('textTertiary'),
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    textAlign: 'center',
-    transition: 'all 0.15s',
-  },
-  tabActive: {
-    flex: 1,
-    padding: '10px 0',
-    border: 'none',
-    borderBottom: `2px solid ${cssVar('primary')}`,
-    background: 'transparent',
-    color: cssVar('text'),
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    textAlign: 'center',
-  },
-};
 
 function StudioLayout() {
   const { gallery, tasks } = useStudio();
@@ -1027,22 +522,27 @@ function StudioLayout() {
   };
 
   const mobileTabs = (
-    <div style={mobileTabStyle.bar} className="studio-mobile-tabs">
-      <button type="button" style={mobileTab === 'inspiration' ? mobileTabStyle.tabActive : mobileTabStyle.tab} onClick={() => setMobileTab('inspiration')}>
+    <div className={styles.mobileTabs}>
+      <button
+        type="button"
+        className={`${styles.mobileTab} ${mobileTab === 'inspiration' ? styles.mobileTabActive : ''}`}
+        onClick={() => setMobileTab('inspiration')}
+      >
         {t('playground.studio_tab_inspiration', { defaultValue: '灵感' })}
       </button>
-      <button type="button" style={mobileTab === 'create' ? mobileTabStyle.tabActive : mobileTabStyle.tab} onClick={() => setMobileTab('create')}>
+      <button
+        type="button"
+        className={`${styles.mobileTab} ${mobileTab === 'create' ? styles.mobileTabActive : ''}`}
+        onClick={() => setMobileTab('create')}
+      >
         {t('playground.studio_tab_create', { defaultValue: '创作' })}
       </button>
     </div>
   );
 
   const inspirationPanel = (
-    <div
-      className="studio-panel-inspiration"
-      style={{ minWidth: 0, overflow: 'hidden' }}
-    >
-      <div className="studio-inspiration-content" style={{ width: '100%', height: '100%' }}>
+    <div className={styles.inspirationPanel}>
+      <div className={styles.inspirationPanelInner}>
         <InspirationSidebar onSelect={handleTemplate} />
       </div>
     </div>
@@ -1050,23 +550,22 @@ function StudioLayout() {
 
   if (isEmpty) {
     return (
-      <div data-full-bleed style={ss.layout} data-mobile-tab={mobileTab}>
-        <style>{studioCSS}</style>
+      <div className={styles.studioShell} data-full-bleed data-mobile-tab={mobileTab}>
         {mobileTabs}
         {inspirationPanel}
-        <div className="studio-panel-create" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: cssVar('bgDeep'), overflow: 'hidden' } as CSSProperties}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '0 32px', userSelect: 'none' } as CSSProperties}>
-              <div style={landing.iconWrap}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.2 }}>
+        <div className={styles.mainPane}>
+          <div>
+            <div>
+              <div>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
               </div>
-              <div style={landing.title}>{t('plugin_pages.studio.title', { defaultValue: '创作中心' })}</div>
-              <div style={landing.subtitle}>{t('playground.studio_landing_subtitle', { defaultValue: '输入提示词，AI 为你生成图片' })}</div>
-              <div style={{ width: '100%', maxWidth: STUDIO_COMPOSER_MAX_WIDTH, marginTop: 16 }}>
+              <div>{t('plugin_pages.studio.title', { defaultValue: '创作中心' })}</div>
+              <div>{t('playground.studio_landing_subtitle', { defaultValue: '输入提示词，AI 为你生成图片' })}</div>
+              <div>
                 <ComposerBar promptRef={promptRef} />
               </div>
             </div>
@@ -1077,13 +576,12 @@ function StudioLayout() {
   }
 
   return (
-    <div data-full-bleed style={ss.layout} data-mobile-tab={mobileTab}>
-      <style>{studioCSS}</style>
+    <div className={styles.studioShell} data-full-bleed data-mobile-tab={mobileTab}>
       {mobileTabs}
       {inspirationPanel}
-      <div className="studio-panel-create" style={{ ...galleryLayout.wrapper, flex: 1, minWidth: 0 }}>
+      <div className={styles.mainPane}>
         <GalleryView />
-        <div style={galleryLayout.composerWrap}>
+        <div>
           <ComposerBar promptRef={promptRef} />
         </div>
       </div>

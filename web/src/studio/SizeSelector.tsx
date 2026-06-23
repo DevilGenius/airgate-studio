@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react';
-import { cssVar } from '@devilgenius/airgate-theme';
+import { useEffect, useRef, useState } from 'react';
 import type { SizeOption } from './modelConfig';
 
 interface SizeSelectorProps {
@@ -28,134 +27,16 @@ function AspectIcon({ aspect, size = 16 }: { aspect?: string; size?: number }) {
   const x = Math.round((size - w) / 2);
   const y = Math.round((size - h) / 2);
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0, opacity: 0.45 }}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <rect x={x} y={y} width={w} height={h} rx={1.5} fill="currentColor" />
     </svg>
   );
 }
 
-// ── Styles ──────────────────────────────────────────────────────────────────
-
-const s: Record<string, CSSProperties> = {
-  trigger: {
-    width: '100%',
-    padding: '9px 14px',
-    border: `1px solid ${cssVar('borderSubtle')}`,
-    borderRadius: 10,
-    background: cssVar('bgDeep'),
-    color: cssVar('text'),
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    font: 'inherit',
-    fontSize: 13,
-    transition: 'border-color 0.2s, box-shadow 0.2s',
-    boxSizing: 'border-box',
-  },
-  triggerOpen: {
-    borderColor: `color-mix(in oklab, ${cssVar('primary')} 30%, transparent)`,
-    boxShadow: `0 0 0 3px ${cssVar('primaryGlow')}`,
-  },
-  triggerCompact: {
-    height: 26,
-    minHeight: 26,
-    padding: '0 10px',
-    borderRadius: 6,
-    fontSize: 11,
-  },
-  dropdown: {
-    position: 'fixed',
-    zIndex: 999999,
-    background: cssVar('bgElevated'),
-    border: `1px solid ${cssVar('glassBorder')}`,
-    borderRadius: 12,
-    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)',
-    maxHeight: 320,
-    overflowY: 'auto',
-    padding: 5,
-    minWidth: 220,
-  },
-  tierHeader: {
-    padding: '8px 14px 4px',
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: cssVar('textTertiary'),
-    fontFamily: cssVar('fontMono'),
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    userSelect: 'none',
-  },
-  option: {
-    width: '100%',
-    padding: '8px 14px',
-    border: 'none',
-    background: 'transparent',
-    color: cssVar('text'),
-    textAlign: 'left',
-    cursor: 'pointer',
-    borderRadius: 8,
-    fontSize: 13,
-    font: 'inherit',
-    transition: 'background 0.12s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    boxSizing: 'border-box',
-  },
-  optionActive: {
-    background: cssVar('primarySubtle'),
-    fontWeight: 600,
-  },
-  optionAspect: {
-    fontSize: 11,
-    color: cssVar('textTertiary'),
-    fontFamily: cssVar('fontMono'),
-    marginLeft: 'auto',
-  },
-  divider: {
-    height: 1,
-    margin: '4px 10px',
-    background: cssVar('borderSubtle'),
-  },
-};
-
-const sizeHoverCSS = `
-  .studio-size-trigger:hover {
-    border-color: ${cssVar('border')};
-  }
-  .studio-size-option:hover {
-    background: ${cssVar('bgHover')};
-  }
-`;
-
-// ── Component ───────────────────────────────────────────────────────────────
-
-export function SizeSelector({ value, sizes, onChange, upward, compact }: SizeSelectorProps) {
+export function SizeSelector({ value, sizes, onChange, compact }: SizeSelectorProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 220 });
-
-  const calcPos = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const width = Math.max(rect.width, 220);
-    if (upward) {
-      setPos({ top: rect.top - 6, left: rect.left, width });
-    } else {
-      setPos({ top: rect.bottom + 6, left: rect.left, width });
-    }
-  }, [upward]);
-
-  const handleToggle = () => {
-    if (!open) calcPos();
-    setOpen(v => !v);
-  };
 
   useEffect(() => {
     if (!open) return;
@@ -191,43 +72,21 @@ export function SizeSelector({ value, sizes, onChange, upward, compact }: SizeSe
 
   const select = (v: string) => { onChange(v); setOpen(false); };
 
-  const dropdownStyle: CSSProperties = upward
-    ? { ...s.dropdown, bottom: `calc(100vh - ${pos.top}px)`, left: pos.left, width: pos.width, top: 'auto' }
-    : { ...s.dropdown, top: pos.top, left: pos.left, width: pos.width };
-
   return (
     <>
-      <style>{sizeHoverCSS}</style>
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={handleToggle}
-        style={{ ...s.trigger, ...(compact ? s.triggerCompact : {}), ...(open ? s.triggerOpen : {}) }}
-        className="studio-size-trigger"
-      >
+      <button ref={triggerRef} type="button" onClick={() => setOpen(v => !v)}>
         {selected?.aspect && <AspectIcon aspect={selected.aspect} size={compact ? 14 : 16} />}
-        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {triggerLabel}
-        </span>
-        <svg
-          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ opacity: 0.4, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0 }}
-        >
+        <span>{triggerLabel}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
 
       {open && (
-        <div ref={dropdownRef} style={dropdownStyle} className="studio-sidebar">
+        <div ref={dropdownRef}>
           {autoOption && (
-            <button
-              type="button"
-              onClick={() => select('auto')}
-              style={{ ...s.option, ...(value === 'auto' ? s.optionActive : {}) }}
-              className={value === 'auto' ? '' : 'studio-size-option'}
-            >
-              <span style={{ flex: 1 }}>Auto</span>
+            <button type="button" onClick={() => select('auto')}>
+              <span>Auto</span>
             </button>
           )}
 
@@ -235,21 +94,15 @@ export function SizeSelector({ value, sizes, onChange, upward, compact }: SizeSe
             const options = tierGroups.get(tier)!;
             return (
               <div key={tier}>
-                {(i > 0 || autoOption) && <div style={s.divider} />}
-                <div style={s.tierHeader}>
+                {(i > 0 || autoOption) && <hr />}
+                <div>
                   <span>{tier}</span>
                 </div>
                 {options.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => select(opt.value)}
-                    style={{ ...s.option, ...(opt.value === value ? s.optionActive : {}) }}
-                    className={opt.value === value ? '' : 'studio-size-option'}
-                  >
+                  <button key={opt.value} type="button" onClick={() => select(opt.value)}>
                     {opt.aspect && <AspectIcon aspect={opt.aspect} />}
                     <span>{opt.label}</span>
-                    {opt.aspect && <span style={s.optionAspect}>{opt.aspect}</span>}
+                    {opt.aspect && <span>{opt.aspect}</span>}
                   </button>
                 ))}
               </div>
