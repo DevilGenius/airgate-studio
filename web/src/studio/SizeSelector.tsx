@@ -5,8 +5,9 @@ interface SizeSelectorProps {
   value: string;
   sizes: SizeOption[];
   onChange: (value: string) => void;
-  upward?: boolean;
   compact?: boolean;
+  triggerClassName?: string;
+  dropdownClassName?: string;
 }
 
 function AspectIcon({ aspect, size = 16 }: { aspect?: string; size?: number }) {
@@ -33,7 +34,7 @@ function AspectIcon({ aspect, size = 16 }: { aspect?: string; size?: number }) {
   );
 }
 
-export function SizeSelector({ value, sizes, onChange, compact }: SizeSelectorProps) {
+export function SizeSelector({ value, sizes, onChange, compact, triggerClassName, dropdownClassName }: SizeSelectorProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -74,7 +75,7 @@ export function SizeSelector({ value, sizes, onChange, compact }: SizeSelectorPr
 
   return (
     <>
-      <button ref={triggerRef} type="button" onClick={() => setOpen(v => !v)}>
+      <button ref={triggerRef} type="button" className={triggerClassName} onClick={() => setOpen(v => !v)}>
         {selected?.aspect && <AspectIcon aspect={selected.aspect} size={compact ? 14 : 16} />}
         <span>{triggerLabel}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -83,7 +84,7 @@ export function SizeSelector({ value, sizes, onChange, compact }: SizeSelectorPr
       </button>
 
       {open && (
-        <div ref={dropdownRef}>
+        <div ref={dropdownRef} className={dropdownClassName}>
           {autoOption && (
             <button type="button" onClick={() => select('auto')}>
               <span>Auto</span>

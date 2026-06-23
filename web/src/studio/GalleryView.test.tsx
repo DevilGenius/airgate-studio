@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GalleryView, __galleryViewTestUtils } from './GalleryView';
 import type { GalleryItem, StudioGenerationTask } from './types';
+import styles from './GalleryView.module.css';
 
 const mocks = vi.hoisted(() => ({
   studio: {} as Record<string, unknown>,
@@ -58,7 +59,6 @@ function setStudio(overrides: Partial<typeof mocks.studio> = {}) {
     generate: vi.fn(),
     setSelectedModelId: vi.fn(),
     setImageSize: vi.fn(),
-    setImageMode: vi.fn(),
     generatedAssetRetentionDays: null,
     ...overrides,
   });
@@ -119,7 +119,6 @@ describe('GalleryView', () => {
     expect(mocks.studio.deleteTask).toHaveBeenCalledWith('failed');
     expect(mocks.studio.setSelectedModelId).toHaveBeenCalledWith('gpt-image-2');
     expect(mocks.studio.setImageSize).toHaveBeenCalledWith('1024x1024');
-    expect(mocks.studio.setImageMode).toHaveBeenCalledWith('text2img');
     await waitFor(() => expect(mocks.studio.generate).toHaveBeenCalledWith('failed prompt', { mode: 'text2img' }));
 
     fireEvent.click(screen.getByRole('button', { name: '删除' }));
@@ -209,7 +208,7 @@ describe('GalleryView', () => {
     });
 
     const { container } = render(<GalleryView />);
-    const scroller = container.querySelector('.studio-gallery') as HTMLElement;
+    const scroller = container.querySelector(`.${styles.galleryRoot}`) as HTMLElement;
     Object.defineProperty(scroller, 'scrollTop', { configurable: true, value: 900 });
     Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 400 });
     Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 1200 });

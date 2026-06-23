@@ -1,0 +1,575 @@
+.galleryRoot {
+  --gallery-bg: var(--studio-bg, var(--ag-bg, oklch(12.00% 0 0)));
+  --gallery-surface: var(--studio-bg-elevated, var(--ag-bg-elevated, oklch(21.03% 0 0)));
+  --gallery-hover: var(--studio-bg-hover, var(--ag-bg-hover, oklch(25.70% 0 0)));
+  --gallery-field: var(--studio-field-bg, var(--ag-field-background, var(--gallery-surface)));
+  --gallery-border: var(--studio-border, var(--ag-border, oklch(28.00% 0 0)));
+  --gallery-text: var(--studio-text, var(--ag-text, oklch(99.11% 0 0)));
+  --gallery-text-secondary: var(--studio-text-secondary, var(--ag-text-secondary, oklch(70.50% 0 0)));
+  --gallery-text-tertiary: var(--studio-text-tertiary, var(--ag-text-tertiary, oklch(70.50% 0 0)));
+  --gallery-primary: var(--studio-primary, var(--ag-primary, oklch(0.9848 0 0)));
+  --gallery-primary-subtle: var(--studio-primary-subtle, var(--ag-primary-subtle, color-mix(in oklab, var(--gallery-primary) 10%, transparent)));
+  --gallery-danger: var(--ag-danger, oklch(0.573 0.2249 21.97));
+  --gallery-warning: var(--ag-warning, oklch(0.8446 0.1525 80.6));
+  --gallery-scrollbar: var(--studio-scrollbar, var(--ag-scrollbar, oklch(70.50% 0 0)));
+  --gallery-radius: 12px;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--gallery-bg);
+  container-type: inline-size;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gallery-scrollbar) transparent;
+}
+
+.galleryRoot::-webkit-scrollbar {
+  width: 8px;
+}
+
+.galleryRoot::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.galleryRoot::-webkit-scrollbar-thumb {
+  background: var(--gallery-scrollbar);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+
+.galleryGrid {
+  --gallery-column-width: 260px;
+  --gallery-columns: 8;
+  --gallery-gap: 16px;
+  --gallery-card-chrome-height: 108px;
+
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(var(--gallery-columns), minmax(0, var(--gallery-column-width)));
+  justify-content: start;
+  align-items: start;
+  gap: var(--gallery-gap);
+  width: 100%;
+  margin: 0 auto;
+  padding: 18px 20px 28px;
+}
+
+.galleryCard,
+.taskCard,
+.cardPlaceholder {
+  width: 100%;
+  margin: 0;
+  border-radius: var(--gallery-radius);
+}
+
+.galleryCard,
+.taskCard {
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--gallery-border) 64%, transparent);
+  background: var(--gallery-surface);
+  color: var(--gallery-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.galleryCard:hover,
+.taskCard:hover {
+  border-color: color-mix(in oklab, var(--gallery-border) 60%, var(--gallery-text) 18%);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+.cardPlaceholder {
+  min-height: calc(var(--gallery-column-width) + var(--gallery-card-chrome-height));
+  border: 1px solid color-mix(in oklab, var(--gallery-border) 46%, transparent);
+  background:
+    linear-gradient(90deg, transparent, color-mix(in oklab, var(--gallery-hover) 38%, transparent), transparent),
+    var(--gallery-surface);
+}
+
+.imageButton {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  background: var(--gallery-hover);
+  color: inherit;
+  cursor: zoom-in;
+  padding: 0;
+  text-align: left;
+}
+
+.imageButton:focus-visible,
+.iconAction:focus-visible,
+.secondaryAction:focus-visible,
+.previewClose:focus-visible {
+  outline: 1.5px solid var(--gallery-primary);
+  outline-offset: 2px;
+}
+
+.galleryImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 11px 12px 12px;
+}
+
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cardInfoRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.expiryPill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sizePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 1.2rem;
+  border: 1px solid color-mix(in oklab, var(--gallery-primary) 28%, transparent);
+  border-radius: var(--radius, var(--ag-field-radius, 0.5rem));
+  background: var(--gallery-primary-subtle);
+  color: var(--gallery-primary);
+  padding: 0 0.36rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.expiryPill {
+  max-width: 100%;
+  border: 1px solid color-mix(in oklab, currentColor 28%, transparent);
+}
+
+.expiryWarning {
+  background: color-mix(in oklab, var(--gallery-warning) 14%, transparent);
+  color: var(--gallery-warning);
+}
+
+.expiryDanger {
+  background: color-mix(in oklab, var(--gallery-danger) 14%, transparent);
+  color: var(--gallery-danger);
+}
+
+.createdAt {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--gallery-text-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.promptArea {
+  min-width: 0;
+}
+
+.copyPrompt {
+  color: var(--gallery-text-secondary);
+  cursor: copy;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.galleryCard .copyPrompt {
+  color: var(--gallery-text);
+}
+
+.copyPrompt:hover {
+  color: var(--gallery-text);
+}
+
+.cardActions,
+.taskActions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.cardActions {
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.iconAction,
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklab, var(--gallery-border) 58%, transparent);
+  border-radius: var(--ag-field-radius, 0.5rem);
+  background: var(--gallery-field);
+  color: var(--gallery-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  transition:
+    background-color 80ms ease,
+    border-color 80ms ease,
+    color 80ms ease;
+}
+
+.iconAction {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.secondaryAction {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.iconAction:hover,
+.secondaryAction:hover {
+  border-color: color-mix(in oklab, var(--gallery-primary) 38%, var(--gallery-border) 62%);
+  background: color-mix(in oklab, var(--gallery-primary) 10%, var(--gallery-field) 90%);
+  color: var(--gallery-primary);
+}
+
+.dangerAction:hover {
+  border-color: color-mix(in oklab, var(--gallery-danger) 38%, var(--gallery-border) 62%);
+  background: color-mix(in oklab, var(--gallery-danger) 10%, var(--gallery-field) 90%);
+  color: var(--gallery-danger);
+}
+
+.taskCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.taskCardFailed {
+  border-color: color-mix(in oklab, var(--gallery-danger) 30%, var(--gallery-border) 70%);
+}
+
+.taskStatusIcon,
+.taskStatusSpinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.taskStatusIcon {
+  background: color-mix(in oklab, var(--gallery-danger) 14%, transparent);
+  color: var(--gallery-danger);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.taskStatusSpinner {
+  border: 2px solid color-mix(in oklab, var(--gallery-primary) 18%, transparent);
+  border-top-color: var(--gallery-primary);
+  animation: spin 900ms linear infinite;
+}
+
+.taskStatusLabel {
+  color: var(--gallery-text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 20px;
+}
+
+.taskError {
+  color: var(--gallery-danger);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.previewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  padding: 40px;
+}
+
+.previewClose {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.previewImage {
+  display: block;
+  max-width: min(92vw, 1280px);
+  max-height: 88vh;
+  border-radius: 12px;
+  object-fit: contain;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 24px 120px;
+  text-align: center;
+}
+
+.emptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border: 1px solid color-mix(in oklab, var(--gallery-border) 64%, transparent);
+  border-radius: 24px;
+  background: var(--gallery-surface);
+  color: var(--gallery-text-tertiary);
+}
+
+.emptyTitle {
+  margin-top: 14px;
+  color: var(--gallery-text);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 26px;
+}
+
+.emptyHint {
+  margin-top: 6px;
+  color: var(--gallery-text-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.shortcutRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.shortcutChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  border: 1px solid color-mix(in oklab, var(--gallery-border) 64%, transparent);
+  border-radius: 999px;
+  background: var(--gallery-surface);
+  color: var(--gallery-text-secondary);
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.loadingMore {
+  width: 100%;
+  margin: 0 auto;
+  padding: 12px 18px 24px;
+  color: var(--gallery-text-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@container (max-width: 2230px) {
+  .galleryGrid {
+    --gallery-column-width: 260px;
+    --gallery-columns: 7;
+    --gallery-gap: 16px;
+  }
+}
+
+@container (max-width: 1970px) {
+  .galleryGrid {
+    --gallery-column-width: 260px;
+    --gallery-columns: 6;
+    --gallery-gap: 16px;
+  }
+}
+
+@container (max-width: 1700px) {
+  .galleryGrid {
+    --gallery-column-width: 240px;
+    --gallery-columns: 6;
+    --gallery-gap: 14px;
+  }
+}
+
+@container (max-width: 1550px) {
+  .galleryGrid {
+    --gallery-column-width: 240px;
+    --gallery-columns: 5;
+    --gallery-gap: 14px;
+  }
+}
+
+@container (max-width: 1300px) {
+  .galleryGrid {
+    --gallery-column-width: 230px;
+    --gallery-columns: 5;
+    --gallery-gap: 14px;
+  }
+}
+
+@container (max-width: 1250px) {
+  .galleryGrid {
+    --gallery-column-width: 230px;
+    --gallery-columns: 4;
+    --gallery-gap: 14px;
+  }
+}
+
+@container (max-width: 1040px) {
+  .galleryGrid {
+    --gallery-column-width: 220px;
+    --gallery-columns: 4;
+    --gallery-gap: 12px;
+    padding: 14px 12px 24px;
+  }
+}
+
+@container (max-width: 940px) {
+  .galleryGrid {
+    --gallery-column-width: 220px;
+    --gallery-columns: 3;
+    --gallery-gap: 12px;
+  }
+}
+
+@container (max-width: 740px) {
+  .galleryGrid {
+    --gallery-column-width: 210px;
+    --gallery-columns: 3;
+    --gallery-gap: 10px;
+    padding: 12px 10px 22px;
+  }
+}
+
+@container (max-width: 670px) {
+  .galleryGrid {
+    --gallery-column-width: 210px;
+    --gallery-columns: 2;
+    --gallery-gap: 10px;
+  }
+}
+
+@container (max-width: 480px) {
+  .galleryGrid {
+    --gallery-column-width: 200px;
+    --gallery-columns: 2;
+    --gallery-gap: 10px;
+  }
+}
+
+@container (max-width: 430px) {
+  .galleryGrid {
+    --gallery-column-width: 200px;
+    --gallery-columns: 1;
+    --gallery-gap: 10px;
+  }
+}
+
+@media (max-width: 960px) {
+  .galleryGrid {
+    padding: 12px 10px 22px;
+  }
+
+  .galleryCard,
+  .taskCard,
+  .cardPlaceholder {
+    margin-bottom: 0;
+  }
+
+  .cardBody {
+    padding: 10px;
+  }
+
+  .cardActions {
+    justify-content: flex-start;
+  }
+
+  .previewOverlay {
+    padding: 18px;
+  }
+
+  .previewImage {
+    max-width: 96vw;
+    max-height: 82vh;
+  }
+}

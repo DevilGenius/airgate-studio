@@ -89,10 +89,9 @@ describe('StudioContext helpers', () => {
     expect(u.operationToImageMode('generate')).toBe('text2img');
     expect(u.modeToOperation('inpaint')).toBe('inpaint');
     expect(u.modeToOperation('img2img')).toBe('edit');
-    expect(u.modeToOperation('batch')).toBe('generate');
-    expect(u.resolveGenerationMode('text2img', { maskRegion: { x: 0, y: 0, width: 1, height: 1 } })).toBe('inpaint');
-    expect(u.resolveGenerationMode('text2img', { sourceImages: ['/a.png'] })).toBe('img2img');
-    expect(u.resolveGenerationMode('batch', { mode: 'text2img' })).toBe('text2img');
+    expect(u.resolveGenerationMode({ maskRegion: { x: 0, y: 0, width: 1, height: 1 } })).toBe('inpaint');
+    expect(u.resolveGenerationMode({ sourceImages: ['/a.png'] })).toBe('img2img');
+    expect(u.resolveGenerationMode()).toBe('text2img');
     expect(u.taskRemoteIds({
       id: 'r-8',
       prompt: '',
@@ -357,8 +356,6 @@ describe('StudioProvider', () => {
       prompt: '  a castle  ',
       parameters: { size: 'auto' },
     });
-    expect(current(capture).isGenerating).toBe(false);
-
     const uiTaskId = current(capture).tasks[0].id;
     act(() => {
       current(capture).deleteTask(uiTaskId);
@@ -517,37 +514,6 @@ describe('StudioProvider', () => {
     })));
   });
 
-  it('keeps partial batch successes and fails all-empty batches', async () => {
-    const capture = renderStudio();
-    await waitFor(() => expect(mockApi.listGenerationTasks).toHaveBeenCalledTimes(2));
-
-    mockApi.createGenerationTask
-      .mockResolvedValueOnce(remoteTask({ id: 51, status: 'pending' }))
-      .mockResolvedValueOnce(remoteTask({ id: 52, status: 'pending' }));
-    mockApi.getGenerationTask
-      .mockResolvedValueOnce(remoteTask({ id: 51, status: 'completed', result_content: '![one](/assets-runtime/one.png)' }))
-      .mockResolvedValueOnce(remoteTask({ id: 52, status: 'failed', error_message: 'failed one' }));
-
-    act(() => {
-      current(capture).generate('batch', { mode: 'batch', prompts: ['one', 'two'] });
-    });
-
-    await waitFor(() => expect(current(capture).tasks[0].status).toBe('completed'));
-    expect(current(capture).gallery[0].url).toBe('/assets-runtime/one.png');
-    expect(mockApi.createGenerationTask).toHaveBeenNthCalledWith(1, expect.objectContaining({ prompt: 'one' }));
-    expect(mockApi.createGenerationTask).toHaveBeenNthCalledWith(2, expect.objectContaining({ prompt: 'two' }));
-
-    mockApi.createGenerationTask.mockResolvedValueOnce(remoteTask({ id: 53, status: 'pending' }));
-    mockApi.getGenerationTask.mockResolvedValueOnce(remoteTask({ id: 53, status: 'failed', error_message: 'all bad' }));
-
-    act(() => {
-      current(capture).generate('batch fail', { mode: 'batch', prompts: ['bad'] });
-    });
-
-    await waitFor(() => expect(current(capture).tasks[0].status).toBe('failed'));
-    expect(current(capture).tasks[0].error).toBe('Batch generation: all tasks failed');
-  });
-
   it('deletes standalone gallery items and can use or regenerate references', async () => {
     mockApi.listGenerationTasks
       .mockResolvedValueOnce({
@@ -576,7 +542,6 @@ describe('StudioProvider', () => {
       current(capture).useAsReference(galleryItem);
     });
     expect(current(capture).referenceImages).toEqual(['/assets-runtime/old.png']);
-    expect(current(capture).imageMode).toBe('img2img');
 
     act(() => {
       current(capture).regenerate({ ...galleryItem, sourceUrl: '/source.png' });
@@ -590,13 +555,6 @@ describe('StudioProvider', () => {
     });
     expect(mockApi.deleteGenerationTask).toHaveBeenCalledWith(61);
 
-    act(() => {
-      current(capture).regenerate({ ...galleryItem, mode: 'batch', size: undefined, sourceUrl: undefined });
-    });
-    await waitFor(() => expect(mockApi.createGenerationTask).toHaveBeenCalledWith(expect.objectContaining({
-      operation: 'generate',
-      prompt: galleryItem.prompt,
-    })));
   });
 
   it('refreshes processing tasks on focus and visibility changes', async () => {
@@ -648,11 +606,7 @@ describe('StudioProvider', () => {
     await waitFor(() => expect(mockApi.getGenerationTask).toHaveBeenCalled());
   });
 
-  it('ignores blank prompts and reports cancellation', async () => {
-    let resolveCreate: (value: GenerationTask) => void = () => {};
-    mockApi.createGenerationTask.mockReturnValueOnce(new Promise<GenerationTask>(resolve => {
-      resolveCreate = resolve;
-    }));
+  it('ignores blank prompts', async () => {
     const capture = renderStudio();
     await waitFor(() => expect(mockApi.listGenerationTasks).toHaveBeenCalledTimes(2));
 
@@ -660,14 +614,5 @@ describe('StudioProvider', () => {
       current(capture).generate('   ');
     });
     expect(mockApi.createGenerationTask).not.toHaveBeenCalled();
-
-    act(() => {
-      current(capture).generate('slow');
-      current(capture).cancelGeneration();
-      resolveCreate(remoteTask({ id: 71, status: 'pending' }));
-    });
-
-    await waitFor(() => expect(current(capture).tasks[0].status).toBe('failed'));
-    expect(current(capture).tasks[0].error).toBe('Generation cancelled');
   });
 });

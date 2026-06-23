@@ -21,7 +21,6 @@ function setStudio(overrides: Partial<typeof mockStudio.value> = {}) {
     currentModel: MODEL_REGISTRY[0],
     imageSize: MODEL_REGISTRY[0].defaultSize,
     setImageSize: vi.fn(),
-    setImageMode: vi.fn(),
     generate: vi.fn(),
     referenceImages: [],
     setReferenceImages: vi.fn(),
@@ -143,10 +142,9 @@ describe('StudioLayout and ComposerBar', () => {
 
     expect((screen.getByPlaceholderText('描述你想生成的图片...') as HTMLTextAreaElement).value).toContain('miniature diorama');
 
-    const mobileTabs = container.querySelectorAll('.studio-mobile-tabs button');
-    fireEvent.click(mobileTabs[0]);
+    fireEvent.click(screen.getByRole('button', { name: '灵感' }));
     expect(container.querySelector('[data-mobile-tab]')).toHaveAttribute('data-mobile-tab', 'inspiration');
-    fireEvent.click(mobileTabs[1]);
+    fireEvent.click(screen.getByRole('button', { name: '创作' }));
     expect(container.querySelector('[data-mobile-tab]')).toHaveAttribute('data-mobile-tab', 'create');
   });
 
@@ -164,9 +162,8 @@ describe('StudioLayout and ComposerBar', () => {
     await user.click(screen.getByRole('button', { name: '4' }));
     fireEvent.keyDown(screen.getByPlaceholderText('描述你想生成的图片...'), { key: 'Enter' });
 
-    expect(mockStudio.value.setImageMode).toHaveBeenCalledWith('text2img');
     expect(mockStudio.value.generate).toHaveBeenCalledTimes(4);
-    expect(mockStudio.value.generate).toHaveBeenCalledWith('city skyline', { mode: 'text2img', count: 1 });
+    expect(mockStudio.value.generate).toHaveBeenCalledWith('city skyline', { mode: 'text2img' });
     expect(screen.getByPlaceholderText('描述你想生成的图片...')).toHaveValue('');
   });
 
@@ -180,11 +177,9 @@ describe('StudioLayout and ComposerBar', () => {
     await user.type(screen.getByPlaceholderText('描述你想要的变化...'), 'change lighting');
     fireEvent.keyDown(screen.getByPlaceholderText('描述你想要的变化...'), { key: 'Enter' });
 
-    expect(mockStudio.value.setImageMode).toHaveBeenCalledWith('img2img');
     expect(mockStudio.value.generate).toHaveBeenCalledWith('change lighting', {
       mode: 'img2img',
       sourceImages: [expect.stringContaining('data:image/png')],
-      count: 1,
     });
   });
 
@@ -192,8 +187,8 @@ describe('StudioLayout and ComposerBar', () => {
     const { container } = render(<__studioViewTestUtils.ComposerBar />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     const inputClick = vi.spyOn(input, 'click').mockImplementation(() => {});
-    const card = container.querySelector('.studio-quick-input') as HTMLElement;
     const textarea = screen.getByPlaceholderText('描述你想生成的图片...');
+    const card = textarea.parentElement as HTMLElement;
 
     fireEvent.click(screen.getByTitle('添加参考图'));
     expect(inputClick).toHaveBeenCalled();
@@ -257,9 +252,10 @@ describe('StudioLayout and ComposerBar', () => {
     fireEvent.mouseUp(canvas, { clientX: 60, clientY: 80 });
     await user.click(screen.getByRole('button', { name: '确定' }));
 
-    expect(screen.getByText('局部绘图')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '清除选区' })).toBeInTheDocument();
+    expect(screen.queryByText('局部绘图')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '清除选区' }));
-    expect(screen.getByText('图生图')).toBeInTheDocument();
+    expect(screen.queryByText('图生图')).not.toBeInTheDocument();
     fireEvent.click(screen.getByAltText('source').parentElement as HTMLElement);
     const editorImgAgain = screen.getAllByAltText('source').at(-1) as HTMLImageElement;
     const canvasAgain = editorImgAgain.parentElement as HTMLElement;
@@ -274,7 +270,6 @@ describe('StudioLayout and ComposerBar', () => {
     await user.type(screen.getByPlaceholderText('描述要修改的区域...'), 'replace object');
     fireEvent.keyDown(screen.getByPlaceholderText('描述要修改的区域...'), { key: 'Enter' });
 
-    expect(mockStudio.value.setImageMode).toHaveBeenCalledWith('inpaint');
     expect(mockStudio.value.generate).toHaveBeenCalledWith('replace object', {
       mode: 'inpaint',
       sourceImage: '/ref.png',

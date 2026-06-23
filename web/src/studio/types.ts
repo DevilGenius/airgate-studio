@@ -1,6 +1,4 @@
-export type MediaType = 'image' | 'video' | 'music';
-
-export type ImageMode = 'text2img' | 'img2img' | 'inpaint' | 'batch';
+export type ImageMode = 'text2img' | 'img2img' | 'inpaint';
 
 export interface GalleryItem {
   id: string;

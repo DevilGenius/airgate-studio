@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useStudio } from './StudioContext';
 import type { GalleryItem, StudioGenerationTask } from './types';
 import { downloadImage } from '../utils';
+import styles from './GalleryView.module.css';
 
 function useNearViewport(rootMargin = '600px', estimatedHeight = 0) {
   const ref = useRef<HTMLDivElement>(null);
@@ -145,7 +146,7 @@ export const __galleryViewTestUtils = {
 
 function TaskCard({ task }: { task: StudioGenerationTask }) {
   const { t } = useTranslation();
-  const { deleteTask, generate, setSelectedModelId, setImageSize, setImageMode } = useStudio();
+  const { deleteTask, generate, setSelectedModelId, setImageSize } = useStudio();
   const { copied, copy } = useCopyOnClick(task.prompt);
 
   const statusLabel = task.status === 'queued'
@@ -159,7 +160,6 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
     deleteTask(task.id);
     if (task.model) setSelectedModelId(task.model);
     if (task.size) setImageSize(task.size);
-    setImageMode(task.mode);
     setTimeout(() => generate(task.prompt, { mode: task.mode }), 0);
   };
 
@@ -169,18 +169,19 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
   };
 
   return (
-    <div>
+    <div className={`${styles.taskCard} ${task.status === 'failed' ? styles.taskCardFailed : ''}`}>
       {task.status === 'failed' ? (
-        <div>!</div>
+        <div className={styles.taskStatusIcon}>!</div>
       ) : (
-        <div />
+        <div className={styles.taskStatusSpinner} />
       )}
-      <div>{statusLabel}</div>
+      <div className={styles.taskStatusLabel}>{statusLabel}</div>
       {task.status === 'failed' && task.error && (
-        <div>{task.error}</div>
+        <div className={styles.taskError}>{task.error}</div>
       )}
       {task.prompt && (
         <div
+          className={styles.copyPrompt}
           onClick={copy}
           title={copied ? '已复制到剪贴板' : '点击复制提示词'}
         >
@@ -188,15 +189,17 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
         </div>
       )}
       {task.status === 'failed' && (
-        <div>
+        <div className={styles.taskActions}>
           <button
             type="button"
+            className={styles.secondaryAction}
             onClick={handleRetry}
           >
             {t('playground.studio_retry', { defaultValue: '重试' })}
           </button>
           <button
             type="button"
+            className={styles.secondaryAction}
             onClick={handleDelete}
           >
             {t('playground.studio_delete', { defaultValue: '删除' })}
@@ -209,10 +212,10 @@ function TaskCard({ task }: { task: StudioGenerationTask }) {
 
 // ── GalleryCard ─────────────────────────────────────────────────────────────
 
-const GALLERY_COL_WIDTH = 200;
+const GALLERY_COL_WIDTH = 240;
 const GALLERY_OVERLAY_HEIGHT = 104;
 
-function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
+function GalleryCard({ item }: { item: GalleryItem }) {
   const { t } = useTranslation();
   const { setPreviewItem, deleteGalleryItem, useAsReference, regenerate, generatedAssetRetentionDays } = useStudio();
   const { copied, copy } = useCopyOnClick(item.prompt);
@@ -250,6 +253,7 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
     return (
       <div
         ref={ref}
+        className={styles.cardPlaceholder}
       />
     );
   }
@@ -257,39 +261,46 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
   return (
     <div
       ref={ref}
+      className={styles.galleryCard}
     >
-      <img
-        src={item.url}
-        srcSet={buildThumbSrcSet(item.url)}
-        sizes="(max-width: 1023px) 50vw, 200px"
-        alt={item.alt || item.prompt}
-        loading="lazy"
-        decoding="async"
-        fetchPriority="low"
+      <button
+        type="button"
+        className={styles.imageButton}
         onClick={() => setPreviewItem(item)}
-      />
-      <div>
-        <div>
-          {item.size && (
-            <span>{item.size}</span>
-          )}
-              <span>
-                {t('playground.studio_created_at', { defaultValue: '创建于' })}
-                {' '}
-                {createdAtLabel}
-              </span>
+      >
+        <img
+          className={styles.galleryImage}
+          src={item.url}
+          srcSet={buildThumbSrcSet(item.url)}
+          sizes="(max-width: 480px) 200px, (max-width: 740px) 210px, (max-width: 1040px) 220px, (max-width: 1300px) 230px, (max-width: 1700px) 240px, 260px"
+          alt={item.alt || item.prompt}
+          loading="lazy"
+          decoding="async"
+          fetchPriority="low"
+        />
+      </button>
+      <div className={styles.cardBody}>
+        <div className={styles.cardMeta}>
+          <div className={styles.cardInfoRow}>
+            {item.size && (
+              <span className={styles.sizePill}>{item.size}</span>
+            )}
+            <span className={styles.createdAt}>{createdAtLabel}</span>
+          </div>
           {expiryNotice && (
             <span
+              className={`${styles.expiryPill} ${expiryNotice.tone === 'danger' ? styles.expiryDanger : styles.expiryWarning}`}
               >
                 {expiryNotice.tone === 'danger'
                 ? t('playground.studio_asset_expired', { defaultValue: '已过期，请立即保存' })
                 : t('playground.studio_asset_expiring', { defaultValue: '还有 {{time}} 过期，请尽快保存', time: expiryNotice.remainingLabel })}
-              </span>
+            </span>
           )}
         </div>
-        <div>
+        <div className={styles.promptArea}>
           {item.prompt && (
             <div
+              className={styles.copyPrompt}
               onClick={copy}
               title={copied ? '已复制到剪贴板' : '点击复制提示词'}
             >
@@ -297,9 +308,10 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
             </div>
           )}
         </div>
-        <div>
+        <div className={styles.cardActions}>
           <button
             type="button"
+            className={styles.iconAction}
             onClick={handleDownload}
             title={t('playground.studio_download', { defaultValue: '下载' })}
           >
@@ -311,6 +323,7 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
           </button>
           <button
             type="button"
+            className={styles.iconAction}
             onClick={handleRegenerate}
             title={t('playground.studio_regenerate', { defaultValue: '重试' })}
           >
@@ -321,6 +334,7 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
           </button>
           <button
             type="button"
+            className={styles.iconAction}
             onClick={handleUseAsReference}
             title={t('playground.studio_use_as_reference', { defaultValue: '参考图' })}
           >
@@ -333,6 +347,7 @@ function GalleryCard({ item, index }: { item: GalleryItem; index: number }) {
           </button>
           <button
             type="button"
+            className={`${styles.iconAction} ${styles.dangerAction}`}
             onClick={handleDelete}
             title={t('playground.studio_delete', { defaultValue: '删除' })}
           >
@@ -390,14 +405,16 @@ function PreviewOverlay() {
     : previewItem.url;
 
   return (
-    <div onClick={() => setPreviewItem(null)}>
+    <div className={styles.previewOverlay} onClick={() => setPreviewItem(null)}>
       <button
         type="button"
+        className={styles.previewClose}
         onClick={() => setPreviewItem(null)}
       >
         ×
       </button>
       <img
+        className={styles.previewImage}
         src={displaySrc}
         alt={previewItem.alt || previewItem.prompt}
         onClick={e => e.stopPropagation()}
@@ -411,24 +428,24 @@ function PreviewOverlay() {
 function EmptyState() {
   const { t } = useTranslation();
   return (
-    <div>
-      <div>
+    <div className={styles.emptyState}>
+      <div className={styles.emptyIcon}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <circle cx="8.5" cy="8.5" r="1.5" />
           <path d="M21 15l-5-5L5 21" />
         </svg>
       </div>
-      <div>{t('playground.studio_gallery_empty', { defaultValue: '还没有生成的图片' })}</div>
-      <div>
+      <div className={styles.emptyTitle}>{t('playground.studio_gallery_empty', { defaultValue: '还没有生成的图片' })}</div>
+      <div className={styles.emptyHint}>
         {t('playground.studio_gallery_empty_hint', { defaultValue: '在下方输入框输入提示词，开始创作' })}
       </div>
-      <div>
-        <div>
+      <div className={styles.shortcutRow}>
+        <div className={styles.shortcutChip}>
           <span>Enter</span>
           <span>{t('playground.studio_shortcut_send', { defaultValue: '发送' })}</span>
         </div>
-        <div>
+        <div className={styles.shortcutChip}>
           <span>Shift</span>
           <span>+</span>
           <span>Enter</span>
@@ -464,23 +481,23 @@ export function GalleryView() {
   const isEmpty = gallery.length === 0 && visibleTasks.length === 0;
 
   return (
-    <div ref={scrollRef}>
+    <div ref={scrollRef} className={styles.galleryRoot}>
       {previewItem && <PreviewOverlay />}
 
       {isEmpty ? (
         <EmptyState />
       ) : (
-        <div>
+        <div className={styles.galleryGrid}>
           {visibleTasks.map(task => (
             <TaskCard key={task.id} task={task} />
           ))}
-          {gallery.map((item, i) => (
-            <GalleryCard key={item.id} item={item} index={i} />
+          {gallery.map(item => (
+            <GalleryCard key={item.id} item={item} />
           ))}
         </div>
       )}
       {loadingMore && (
-        <div>加载中...</div>
+        <div className={styles.loadingMore}>加载中...</div>
       )}
     </div>
   );

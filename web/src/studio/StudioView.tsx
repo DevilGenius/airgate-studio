@@ -5,8 +5,6 @@ import { GalleryView } from './GalleryView';
 import { SizeSelector } from './SizeSelector';
 import styles from './StudioView.module.css';
 
-const STUDIO_COMPOSER_MAX_WIDTH = '68rem';
-
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function readFileAsDataURL(file: File): Promise<string> {
@@ -252,12 +250,10 @@ function InspirationSidebar({ onSelect }: { onSelect: (prompt: string) => void }
 // ── ComposerBar ─────────────────────────────────────────────────────────────
 
 const COUNT_OPTIONS = [1, 2, 3, 4];
-const COMPOSER_TEXTAREA_HEIGHT = 96;
 
 function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: (v: string) => void } | null> }) {
   const { t } = useTranslation();
   const {
-    setImageMode,
     currentModel,
     imageSize, setImageSize,
     generate,
@@ -299,17 +295,14 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
     if (!trimmed) return;
 
     if (isSingleSource && selection) {
-      setImageMode('inpaint');
       void generate(trimmed, { mode: 'inpaint', sourceImage: allSources[0], maskRegion: selection });
     } else if (hasSource) {
-      setImageMode('img2img');
       for (let i = 0; i < count; i++) {
-        void generate(trimmed, { mode: 'img2img', sourceImages: allSources, count: 1 });
+        void generate(trimmed, { mode: 'img2img', sourceImages: allSources });
       }
     } else {
-      setImageMode('text2img');
       for (let i = 0; i < count; i++) {
-        void generate(trimmed, { mode: 'text2img', count: 1 });
+        void generate(trimmed, { mode: 'text2img' });
       }
     }
     setPrompt('');
@@ -382,53 +375,82 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
     setSelection(null);
   };
 
+  const handleRemoveSource = (index: number) => {
+    removeSource(index);
+    setEditorIndex(current => {
+      if (current === null || current === index) return null;
+      return current > index ? current - 1 : current;
+    });
+  };
+
   const clearAllSources = () => {
     setSourceImages([]);
     setReferenceImages([]);
     setSelection(null);
+    setEditorIndex(null);
   };
 
   const placeholder = hasSource
     ? (isSingleSource && selection ? '描述要修改的区域...' : '描述你想要的变化...')
     : '描述你想生成的图片...';
 
-  const modeHint = hasSource
-    ? (isSingleSource && selection ? '局部绘图' : '图生图')
-    : null;
-
   return (
     <div
+      className={`${styles.composerRoot} ${isDragging ? styles.composerRootDragging : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Source image thumbnails */}
       {hasSource && (
-        <div>
+        <div className={styles.sourceStrip}>
           {allSources.map((src, i) => (
-            <div key={i} onClick={() => setEditorIndex(i)}>
-              <img
-                src={src}
-                alt="source"
-              />
-              {isSingleSource && selection && (
-                <div
-                  title="已选区"
+            <div className={styles.sourceThumb} key={`${src}-${i}`}>
+              <button
+                type="button"
+                className={styles.sourceThumbPreview}
+                onClick={() => setEditorIndex(i)}
+                title={t('playground.studio_preview_reference', { defaultValue: '查看参考图' })}
+              >
+                <img
+                  className={styles.sourceThumbImage}
+                  src={src}
+                  alt="source"
                 />
-              )}
+                {isSingleSource && selection && (
+                  <div
+                    className={styles.sourceSelectionBadge}
+                    title="已选区"
+                  />
+                )}
+              </button>
+              <button
+                type="button"
+                className={styles.sourceRemoveButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveSource(i);
+                }}
+                aria-label={t('playground.studio_remove_image', { defaultValue: '移除图片' })}
+                title={t('playground.studio_remove_image', { defaultValue: '移除图片' })}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
             </div>
           ))}
           {allSources.length > 1 && (
-            <button type="button" onClick={clearAllSources}>
+            <button type="button" className={styles.sourceAction} onClick={clearAllSources}>
               {t('playground.studio_clear_all', { defaultValue: '清除全部' })}
             </button>
           )}
           {isSingleSource && selection && (
-            <button type="button" onClick={() => setSelection(null)}>
+            <button type="button" className={styles.sourceAction} onClick={() => setSelection(null)}>
               {t('playground.studio_clear_selection', { defaultValue: '清除选区' })}
             </button>
           )}
-          {modeHint && <span>{modeHint}</span>}
         </div>
       )}
       {editorIndex !== null && allSources[editorIndex] && (
@@ -442,16 +464,16 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
           }}
           onClose={() => setEditorIndex(null)}
           onDelete={() => {
-            removeSource(editorIndex);
-            setEditorIndex(null);
+            handleRemoveSource(editorIndex);
           }}
         />
       )}
-      <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} />
+      <input ref={fileInputRef} className={styles.fileInput} type="file" accept="image/*" multiple onChange={handleFileInput} />
 
       {/* Prompt textarea */}
       <textarea
         ref={textareaRef}
+        className={styles.composerTextarea}
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -460,17 +482,25 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
       />
 
       {/* Toolbar row */}
-      <div>
-        <div>
-          <span>
-            <span />
+      <div className={styles.composerToolbar}>
+        <div className={styles.composerToolbarLeft}>
+          <span className={styles.modelBadge}>
+            <span className={styles.modelDot} />
             {currentModel.name}
           </span>
-          <div>
-            <SizeSelector value={imageSize} sizes={currentModel.sizes} onChange={setImageSize} upward compact />
+          <div className={styles.sizePicker}>
+            <SizeSelector
+              value={imageSize}
+              sizes={currentModel.sizes}
+              onChange={setImageSize}
+              compact
+              triggerClassName={styles.sizeChip}
+              dropdownClassName={styles.sizeMenu}
+            />
           </div>
           <button
             type="button"
+            className={styles.inputActionButton}
             onClick={() => fileInputRef.current?.click()}
             title={t('playground.studio_add_reference', { defaultValue: '添加参考图' })}
           >
@@ -478,11 +508,12 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
               <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
             </svg>
           </button>
-          <div>
+          <div className={styles.countGroup}>
             {COUNT_OPTIONS.map(n => (
               <button
                 key={n}
                 type="button"
+                className={`${styles.countButton} ${count === n ? styles.countButtonActive : ''}`}
                 onClick={() => setCount(n)}
               >
                 {n}
@@ -492,6 +523,7 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
         </div>
         <button
           type="button"
+          className={styles.sendButton}
           onClick={handleSend}
           disabled={!canSend}
         >
@@ -554,21 +586,21 @@ function StudioLayout() {
         {mobileTabs}
         {inspirationPanel}
         <div className={styles.mainPane}>
-          <div>
-            <div>
-              <div>
+          <div className={styles.landingPane}>
+            <div className={styles.landingContent}>
+              <div className={styles.landingIcon}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
               </div>
-              <div>{t('plugin_pages.studio.title', { defaultValue: '创作中心' })}</div>
-              <div>{t('playground.studio_landing_subtitle', { defaultValue: '输入提示词，AI 为你生成图片' })}</div>
-              <div>
-                <ComposerBar promptRef={promptRef} />
-              </div>
+              <div className={styles.landingTitle}>{t('plugin_pages.studio.title', { defaultValue: '创作中心' })}</div>
+              <div className={styles.landingSubtitle}>{t('playground.studio_landing_subtitle', { defaultValue: '输入提示词，AI 为你生成图片' })}</div>
             </div>
+          </div>
+          <div className={styles.composerDock}>
+            <ComposerBar promptRef={promptRef} />
           </div>
         </div>
       </div>
@@ -580,8 +612,10 @@ function StudioLayout() {
       {mobileTabs}
       {inspirationPanel}
       <div className={styles.mainPane}>
-        <GalleryView />
-        <div>
+        <div className={styles.contentPane}>
+          <GalleryView />
+        </div>
+        <div className={styles.composerDock}>
           <ComposerBar promptRef={promptRef} />
         </div>
       </div>

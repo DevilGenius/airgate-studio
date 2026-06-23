@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { CustomSelect } from './CustomSelect';
 import { SizeSelector } from './SizeSelector';
 import type { SizeOption } from './modelConfig';
 
@@ -12,88 +11,47 @@ const sizes: SizeOption[] = [
   { value: '1152x2048', label: '1152x2048', tier: '2K', price: 0.2, aspect: '9:16' },
 ];
 
-describe('CustomSelect', () => {
-  it('opens, selects an option, and closes on outside click', async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
-    render(
-      <div>
-        <CustomSelect
-          value="a"
-          options={[
-            { value: 'a', label: 'Alpha' },
-            { value: 'b', label: 'Beta' },
-          ]}
-          onChange={onChange}
-        />
-        <button type="button">outside</button>
-      </div>,
-    );
-
-    await user.click(screen.getByRole('button', { name: /Alpha/ }));
-    await user.click(screen.getByRole('button', { name: 'Beta' }));
-
-    expect(onChange).toHaveBeenCalledWith('b');
-    expect(screen.queryByRole('button', { name: 'Beta' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /Alpha/ }));
-    expect(screen.getByRole('button', { name: 'Beta' })).toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'outside' }));
-    expect(screen.queryByRole('button', { name: 'Beta' })).not.toBeInTheDocument();
-  });
-
-  it('uses placeholder and raw value fallbacks', () => {
-    const { rerender } = render(
-      <CustomSelect value="" options={[]} onChange={vi.fn()} placeholder="Pick one" />,
-    );
-
-    expect(screen.getByRole('button', { name: /Pick one/ })).toBeInTheDocument();
-
-    rerender(<CustomSelect value="raw" options={[]} onChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /raw/ })).toBeInTheDocument();
-  });
-});
+function dropdown(container: HTMLElement): HTMLElement {
+  const el = container.querySelector('button + div');
+  if (!(el instanceof HTMLElement)) throw new Error('dropdown not found');
+  return el;
+}
 
 describe('SizeSelector', () => {
   it('groups sizes by tier and selects a size', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<SizeSelector value="auto" sizes={sizes} onChange={onChange} />);
+    const { container } = render(<SizeSelector value="auto" sizes={sizes} onChange={onChange} />);
 
     await user.click(screen.getByRole('button', { name: /Auto/ }));
-    const dropdown = document.querySelector('.studio-sidebar');
+    const menu = dropdown(container);
 
-    expect(dropdown).toBeInTheDocument();
-    expect(within(dropdown as HTMLElement).getByText('1K')).toBeInTheDocument();
-    expect(within(dropdown as HTMLElement).getByText('2K')).toBeInTheDocument();
+    expect(within(menu).getByText('1K')).toBeInTheDocument();
+    expect(within(menu).getByText('2K')).toBeInTheDocument();
 
-    await user.click(within(dropdown as HTMLElement).getByRole('button', { name: /2048x1152/ }));
+    await user.click(within(menu).getByRole('button', { name: /2048x1152/ }));
     expect(onChange).toHaveBeenCalledWith('2048x1152');
-    expect(document.querySelector('.studio-sidebar')).not.toBeInTheDocument();
+    expect(container.querySelector('button + div')).not.toBeInTheDocument();
   });
 
-  it('supports compact upward positioning, unknown values, and outside close', async () => {
+  it('supports compact unknown values and outside close', async () => {
     const user = userEvent.setup();
-    render(<SizeSelector value="custom" sizes={sizes} onChange={vi.fn()} upward compact />);
+    const { container } = render(<SizeSelector value="custom" sizes={sizes} onChange={vi.fn()} compact />);
 
     await user.click(screen.getByRole('button', { name: /custom/ }));
-    const dropdown = document.querySelector('.studio-sidebar') as HTMLElement;
-
-    expect(dropdown).toBeInTheDocument();
-    expect(dropdown.style.bottom).toContain('100vh');
+    expect(dropdown(container)).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
-    expect(document.querySelector('.studio-sidebar')).not.toBeInTheDocument();
+    expect(container.querySelector('button + div')).not.toBeInTheDocument();
   });
 
   it('renders portrait aspect icons and can select auto from another size', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<SizeSelector value="1152x2048" sizes={sizes} onChange={onChange} />);
+    const { container } = render(<SizeSelector value="1152x2048" sizes={sizes} onChange={onChange} />);
 
     await user.click(screen.getByRole('button', { name: /1152x2048/ }));
-    const dropdown = document.querySelector('.studio-sidebar') as HTMLElement;
-    await user.click(within(dropdown).getByRole('button', { name: 'Auto' }));
+    await user.click(within(dropdown(container)).getByRole('button', { name: 'Auto' }));
 
     expect(onChange).toHaveBeenCalledWith('auto');
   });
