@@ -4,6 +4,8 @@ go.work
 go.work.sum
 *.tsbuildinfo
 web/node_modules/
+web/.pnpm-store/
+web/.pnpm-store-tmp/
 web/dist/
 backend/internal/studio/webdist/*
 !backend/internal/studio/webdist/.gitkeep
