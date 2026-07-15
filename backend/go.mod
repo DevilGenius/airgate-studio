@@ -2,7 +2,7 @@ module github.com/DevilGenius/airgate-studio/backend
 
 go 1.26.5
 
-require github.com/DevilGenius/airgate-sdk v0.2.6
+require github.com/DevilGenius/airgate-sdk v0.2.7
 
 require (
 	github.com/fatih/color v1.13.0 // indirect
