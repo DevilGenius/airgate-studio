@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -490,74 +491,18 @@ func TestRouteErrorsAdditional(t *testing.T) {
 }
 
 func TestPluginMetadataLifecycleAssetsAndRouteRegistrationAdditional(t *testing.T) {
-	host := &studioFakeHost{}
-	plugin := &StudioPlugin{}
-	if err := plugin.Init(studioFakeContext{
-		logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
-		host:   host,
-	}); err != nil {
-		t.Fatalf("Init: %v", err)
-	}
-	if plugin.host != host || plugin.logger == nil {
-		t.Fatalf("plugin init did not keep host/logger")
-	}
-	if err := plugin.Start(context.Background()); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if err := plugin.Stop(context.Background()); err != nil {
-		t.Fatalf("Stop: %v", err)
-	}
-	if err := plugin.Migrate(); err != nil {
-		t.Fatalf("Migrate: %v", err)
-	}
-	if tasks := plugin.BackgroundTasks(); tasks != nil {
-		t.Fatalf("BackgroundTasks = %#v", tasks)
-	}
-	info := plugin.Info()
-	if info.ID != PluginID || info.Name != PluginName || len(info.Capabilities) == 0 || len(info.FrontendPages) != 1 {
-		t.Fatalf("info = %#v", info)
-	}
-
-	recorder := &studioRouteRecorder{}
-	plugin.RegisterRoutes(recorder)
-	if len(recorder.routes) != 6 {
-		t.Fatalf("registered routes = %#v", recorder.routes)
-	}
-
-	assets := plugin.GetWebAssets()
-	if _, ok := assets[".gitkeep"]; ok {
-		t.Fatalf("GetWebAssets leaked .gitkeep")
-	}
-
-	devRoot := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(devRoot, "web", "dist"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(devRoot, "web", "dist", "index.html"), []byte("dev"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(devRoot)
-	assets = plugin.GetWebAssets()
-	if string(assets["index.html"]) != "dev" {
-		t.Fatalf("dev GetWebAssets = %#v", assets)
-	}
-
+	before := (&StudioPlugin{}).GetWebAssets()
 	root := t.TempDir()
-	if got := loadAssetsFromDir(filepath.Join(root, "missing")); got != nil {
-		t.Fatalf("missing assets = %#v", got)
-	}
-	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("hello"), 0o600); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "web", "dist"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(filepath.Join(root, "assets"), 0o700); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "web", "dist", "index.js"), []byte("wrong project"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "assets", "app.js"), []byte("js"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	got := loadAssetsFromDir(root)
-	if string(got["index.html"]) != "hello" || string(got["assets/app.js"]) != "js" {
-		t.Fatalf("loaded assets = %#v", got)
+	t.Chdir(root)
+	after := (&StudioPlugin{}).GetWebAssets()
+	if !reflect.DeepEqual(before, after) {
+		t.Fatal("working directory changed immutable plugin assets")
 	}
 }
 

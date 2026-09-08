@@ -13,6 +13,8 @@ function sharedModulesPlugin(): Plugin {
     name: 'airgate-shared-modules',
     enforce: 'post',
     generateBundle(_options, bundle) {
+      // Preserve the tracked Go embed directory anchor after a clean watch build.
+      this.emitFile({ type: 'asset', fileName: '.gitkeep', source: '' });
       for (const chunk of Object.values(bundle)) {
         if (chunk.type !== 'chunk') continue;
         let code = chunk.code;
