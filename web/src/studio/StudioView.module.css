@@ -518,26 +518,53 @@
   overflow: visible;
 }
 
-.modelBadge {
+.modelPicker {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: min(260px, 42vw);
+  position: relative;
+  z-index: 30;
+}
+
+.modelChip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: var(--pg-composer-control-height);
+  justify-content: center;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: var(--pg-input-btn-min-w);
+  max-width: 100%;
   min-height: var(--pg-input-btn-min-h);
-  max-width: 220px;
-  flex: 0 1 auto;
-  overflow: hidden;
+  height: var(--pg-composer-control-height);
   border: 1px solid color-mix(in oklab, var(--studio-border) 54%, transparent);
   border-radius: var(--pg-core-button-radius);
   background: var(--studio-field-bg);
   color: var(--studio-text-secondary);
   box-shadow: var(--studio-shadow-sm);
-  padding: var(--pg-input-btn-padding);
+  cursor: pointer;
+  font: inherit;
   font-size: 13px;
   font-weight: 500;
   line-height: 20px;
+  padding: var(--pg-input-btn-padding);
+  gap: 7px;
+  overflow: hidden;
   white-space: nowrap;
+  transition:
+    background-color 80ms ease,
+    border-color 80ms ease,
+    color 80ms ease;
+}
+
+.modelChip > span {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.modelChip:hover {
+  background: var(--studio-bg-hover);
+  color: var(--studio-text);
 }
 
 .modelDot {
@@ -636,6 +663,7 @@
 }
 
 .sizeChip:focus-visible,
+.modelChip:focus-visible,
 .inputActionButton:focus-visible,
 .countButton:focus-visible,
 .sendButton:focus-visible {
@@ -643,7 +671,8 @@
   outline-offset: 2px;
 }
 
-.sizeMenu {
+.sizeMenu,
+.modelMenu {
   position: absolute;
   left: 0;
   bottom: calc(100% + 8px);
@@ -658,7 +687,8 @@
   padding: 6px;
 }
 
-.sizeMenu button {
+.sizeMenu button,
+.modelMenu button {
   display: flex;
   align-items: center;
   width: 100%;
@@ -675,11 +705,23 @@
   text-align: left;
 }
 
-.sizeMenu button:hover {
+.modelMenu button {
+  justify-content: space-between;
+}
+
+.modelMenu button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sizeMenu button:hover,
+.modelMenu button:hover {
   background: var(--studio-bg-hover);
 }
 
-.sizeMenu hr {
+.sizeMenu hr,
+.modelMenu hr {
   border: 0;
   border-top: 1px solid color-mix(in oklab, var(--studio-border) 70%, transparent);
   margin: 6px 0;
@@ -841,9 +883,10 @@
     display: none;
   }
 
-  .modelBadge {
-    max-width: 42vw;
+  .modelPicker {
     flex: 0 0 auto;
+    min-width: 0;
+    max-width: 46vw;
   }
 
   .sizePicker {

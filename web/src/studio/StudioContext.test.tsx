@@ -180,6 +180,8 @@ describe('StudioProvider', () => {
     mockApi.createGenerationTask.mockResolvedValue(remoteTask({ id: 50, status: 'pending' }));
     mockApi.getGenerationTask.mockResolvedValue(remoteTask({ id: 50, status: 'completed' }));
     mockApi.deleteGenerationTask.mockResolvedValue(undefined);
+    // 默认：Core 没返回可用模型 → 保持静态注册表
+    mockApi.listModels.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -243,6 +245,47 @@ describe('StudioProvider', () => {
 
     await waitFor(() => expect(mockApi.getPublicSettings).toHaveBeenCalled());
     expect(current(capture).generatedAssetRetentionDays).toBeNull();
+  });
+
+  it('uses the live image model list from Core and keeps GPT Image 2 as the default', async () => {
+    mockApi.listModels.mockResolvedValueOnce([
+      { id: 'gpt-image-2.5-flare', name: 'GPT Image 2.5 Flare', capabilities: ['image_generation'] },
+      { id: 'gpt-image-2', name: 'GPT Image 2', capabilities: ['image_generation'] },
+      { id: 'gpt-image-9-aurora', name: 'GPT Image 9 Aurora', capabilities: ['image_generation'] },
+      // Core 的 models.list 会把同平台的 chat 模型一起带回，必须被筛掉
+      { id: 'gpt-5.6-luna', name: 'GPT-5.6-Luna', capabilities: ['chat', 'reasoning'] },
+    ]);
+    const capture = renderStudio();
+
+    await waitFor(() => expect(current(capture).modelRegistry.map(m => m.id)).toEqual([
+      'gpt-image-2',
+      'gpt-image-2.5-flare',
+      'gpt-image-9-aurora',
+    ]));
+    expect(mockApi.listModels).toHaveBeenCalledWith('openai', 'image');
+    // 默认选项仍是 GPT Image 2，即使 Core 把它排在后面
+    expect(current(capture).selectedModelId).toBe('gpt-image-2');
+    expect(current(capture).currentModel.name).toBe('GPT Image 2');
+    // 只被 Core 认识的模型用默认尺寸阶梯兜底，可以直接选中
+    const aurora = current(capture).modelRegistry[2];
+    expect(aurora?.defaultSize).toBe('auto');
+    expect(aurora?.sizes.length).toBeGreaterThan(0);
+
+    act(() => {
+      current(capture).setSelectedModelId('gpt-image-9-aurora');
+    });
+    expect(current(capture).currentModel.name).toBe('GPT Image 9 Aurora');
+  });
+
+  it('keeps the static registry when the live model list has no image model', async () => {
+    mockApi.listModels.mockResolvedValueOnce([
+      { id: 'gpt-5.6-luna', name: 'GPT-5.6-Luna', capabilities: ['chat'] },
+    ]);
+    const capture = renderStudio();
+
+    await waitFor(() => expect(mockApi.listModels).toHaveBeenCalled());
+    expect(current(capture).modelRegistry).toBe(MODEL_REGISTRY);
+    expect(current(capture).currentModel.id).toBe('gpt-image-2');
   });
 
   it('updates model size only when the selected model cannot use the current size', async () => {

@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { ModelSelector } from './ModelSelector';
 import { SizeSelector } from './SizeSelector';
-import type { SizeOption } from './modelConfig';
+import { MODEL_REGISTRY, type SizeOption } from './modelConfig';
 
 const sizes: SizeOption[] = [
   { value: 'auto', label: 'Auto', tier: '1K', price: 0.1 },
@@ -54,5 +55,39 @@ describe('SizeSelector', () => {
     await user.click(within(dropdown(container)).getByRole('button', { name: 'Auto' }));
 
     expect(onChange).toHaveBeenCalledWith('auto');
+  });
+});
+
+describe('ModelSelector', () => {
+  it('lists every registered model and reports the picked id', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { container } = render(<ModelSelector value="gpt-image-2" onChange={onChange} />);
+
+    await user.click(screen.getByRole('button', { name: 'GPT Image 2' }));
+    const menu = dropdown(container);
+
+    expect(within(menu).getAllByRole('button').map(b => b.textContent)).toEqual([
+      'GPT Image 2',
+      'GPT Image 2.5 Sunburst',
+      'GPT Image 2.5 Flare',
+    ]);
+
+    await user.click(within(menu).getByRole('button', { name: 'GPT Image 2.5 Flare' }));
+    expect(onChange).toHaveBeenCalledWith('gpt-image-2.5-flare');
+    expect(container.querySelector('button + div')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the first model for unknown ids and closes on outside click', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ModelSelector value="retired-model" onChange={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: MODEL_REGISTRY[0].name })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: MODEL_REGISTRY[0].name }));
+    expect(dropdown(container)).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(container.querySelector('button + div')).not.toBeInTheDocument();
   });
 });

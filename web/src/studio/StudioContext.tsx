@@ -10,7 +10,7 @@ import {
 import { api } from '../api';
 import type { GenerationTask } from '../api';
 import type { GalleryItem, StudioGenerationTask, ImageMode } from './types';
-import { getModelConfig, getDefaultModel, MODEL_REGISTRY, type ModelConfig } from './modelConfig';
+import { DEFAULT_MODEL_ID, findModelConfig, getDefaultModel, MODEL_REGISTRY, pickImageModels, resolveModelRegistry, type ModelConfig } from './modelConfig';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -214,6 +214,8 @@ async function pollGenerationTask(
 export interface StudioContextValue {
   // Model config
   currentModel: ModelConfig;
+  /** 可选模型列表：Core 返回的可用模型（openai + image）合并本地尺寸/价格配置；拉取失败时是静态注册表。 */
+  modelRegistry: ModelConfig[];
   selectedModelId: string;
   setSelectedModelId: (id: string) => void;
   imageSize: string;
@@ -275,8 +277,9 @@ export const __studioContextTestUtils = {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function StudioProvider({ children }: { children: ReactNode }) {
-  // Model selection (hardcoded registry)
-  const [selectedModelId, setSelectedModelIdRaw] = useState(getDefaultModel().id);
+  // Model selection: 可用模型从 Core 动态拉取，本地注册表兜底（详见 modelConfig.ts）
+  const [modelRegistry, setModelRegistry] = useState<ModelConfig[]>(MODEL_REGISTRY);
+  const [selectedModelId, setSelectedModelIdRaw] = useState(DEFAULT_MODEL_ID);
   const [imageSize, setImageSize] = useState(getDefaultModel().defaultSize);
 
   // Reference images (accumulated via "use as reference" from gallery)
@@ -295,17 +298,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const recoveryPromiseRef = useRef<Promise<void> | null>(null);
 
-  // Derived from hardcoded registry
-  const currentModel = getModelConfig(selectedModelId) ?? getDefaultModel();
+  // Derived from the resolved registry (Core 可用模型 + 本地尺寸/价格配置)
+  const currentModel = findModelConfig(modelRegistry, selectedModelId) ?? modelRegistry[0] ?? getDefaultModel();
   const selectedPlatform = currentModel.platform;
 
   const setSelectedModelId = useCallback((id: string) => {
     setSelectedModelIdRaw(id);
-    const newModel = getModelConfig(id);
+    const newModel = findModelConfig(modelRegistry, id);
     if (newModel && !newModel.sizes.some(s => s.value === imageSize)) {
       setImageSize(newModel.defaultSize);
     }
-  }, [imageSize]);
+  }, [imageSize, modelRegistry]);
 
   // ── Initialization ────────────────────────────────────────────────────────
 
@@ -322,6 +325,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (active) setGeneratedAssetRetentionDays(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 可用模型：向 Core 要 openai 平台的模型列表，再按图像生成能力筛出可生图模型，
+  // 插件新增模型后这里自动出现（Core 的 capability 参数会被忽略，见 pickImageModels）。
+  // 拉取失败、返回为空或没有可生图模型时保留静态注册表，UI 不会出现空选择器。
+  useEffect(() => {
+    let active = true;
+    api.listModels('openai', 'image')
+      .then((models) => {
+        if (!active) return;
+        const imageModels = pickImageModels(models);
+        if (imageModels.length === 0) return;
+        setModelRegistry(resolveModelRegistry(imageModels));
+      })
+      .catch(() => {
+        // 动态列表失败：沿用静态注册表
       });
     return () => {
       active = false;
@@ -674,6 +697,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const value: StudioContextValue = {
     currentModel,
+    modelRegistry,
     selectedModelId,
     setSelectedModelId,
     imageSize,

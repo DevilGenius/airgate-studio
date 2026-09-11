@@ -19,6 +19,8 @@ function setStudio(overrides: Partial<typeof mockStudio.value> = {}) {
     gallery: [],
     tasks: [],
     currentModel: MODEL_REGISTRY[0],
+    modelRegistry: MODEL_REGISTRY,
+    selectedModelId: MODEL_REGISTRY[0].id,
     imageSize: MODEL_REGISTRY[0].defaultSize,
     setImageSize: vi.fn(),
     generate: vi.fn(),

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Drag
 import { useTranslation } from 'react-i18next';
 import { StudioProvider, useStudio } from './StudioContext';
 import { GalleryView } from './GalleryView';
+import { ModelSelector } from './ModelSelector';
 import { SizeSelector } from './SizeSelector';
 import styles from './StudioView.module.css';
 
@@ -255,6 +256,8 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
   const { t } = useTranslation();
   const {
     currentModel,
+    modelRegistry,
+    selectedModelId, setSelectedModelId,
     imageSize, setImageSize,
     generate,
     referenceImages, setReferenceImages,
@@ -484,10 +487,16 @@ function ComposerBar({ promptRef }: { promptRef?: React.MutableRefObject<{ set: 
       {/* Toolbar row */}
       <div className={styles.composerToolbar}>
         <div className={styles.composerToolbarLeft}>
-          <span className={styles.modelBadge}>
-            <span className={styles.modelDot} />
-            {currentModel.name}
-          </span>
+          <div className={styles.modelPicker}>
+            <ModelSelector
+              value={selectedModelId}
+              models={modelRegistry}
+              onChange={setSelectedModelId}
+              leading={<span className={styles.modelDot} />}
+              triggerClassName={styles.modelChip}
+              dropdownClassName={styles.modelMenu}
+            />
+          </div>
           <div className={styles.sizePicker}>
             <SizeSelector
               value={imageSize}
