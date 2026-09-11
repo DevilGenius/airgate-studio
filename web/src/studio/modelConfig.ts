@@ -89,7 +89,7 @@ export function createModelConfig(id: string, name?: string): ModelConfig {
  * chat 模型，所以这里必须自己按能力筛。列表里完全没有能力信息时（老 Core）原样返回，
  * 由调用方与本地注册表合并后仍然可用。
  */
-export function pickImageModels<T extends { capabilities?: string[] }>(models: readonly T[]): T[] {
+export function pickImageModels<T extends { id: string; capabilities?: string[] }>(models: readonly T[]): T[] {
   const withCapabilities = models.filter(m => Array.isArray(m.capabilities) && m.capabilities.length > 0);
   if (withCapabilities.length === 0) return [...models];
   return withCapabilities.filter(m => m.capabilities?.includes(IMAGE_GENERATION_CAPABILITY) === true);
