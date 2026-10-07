@@ -1,0 +1,12 @@
+version: "2"
+
+formatters:
+  exclusions:
+    generated: strict
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/DevilGenius

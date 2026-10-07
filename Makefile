@@ -1,6 +1,7 @@
 # AirGate 创作中心插件 Makefile
 
 GO := GOTOOLCHAIN=local go
+GOLANGCI_LINT_VERSION := v2.12.2
 
 WEBDIST := backend/internal/studio/webdist
 
@@ -71,7 +72,10 @@ dev: build-web ## 构建前端资产并提示如何在 core 里 dev 加载本插
 
 # ===================== 质量检查 =====================
 
-ci: type-check vet test build-backend ## 本地运行与 CI 完全一致的检查
+ci: format-check type-check vet test build-backend ## 本地运行与 CI 完全一致的检查
+
+format-check: ## Check Go formatting with the pinned CI formatter
+	cd backend && golangci-lint fmt --diff
 
 pre-commit: ensure-webdist type-check test vet ## pre-commit hook 调用
 
