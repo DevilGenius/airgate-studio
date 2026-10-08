@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	sdk "github.com/DevilGenius/airgate-sdk/sdkgo"
 )
@@ -31,9 +30,9 @@ func hostInvoke(ctx context.Context, host sdk.Host, method string, payload map[s
 		return nil, err
 	}
 	if resp == nil {
-		return map[string]interface{}{}, nil
+		return nil, fmt.Errorf("host method %s 返回空响应", method)
 	}
-	if strings.EqualFold(resp.Status, "error") {
+	if resp.Status != "ok" {
 		if msg, _ := resp.Payload["message"].(string); msg != "" {
 			return nil, fmt.Errorf("%s", msg)
 		}
@@ -73,7 +72,7 @@ func hostCreateTask(ctx context.Context, host sdk.Host, pluginID, taskType strin
 	if err != nil {
 		return nil, err
 	}
-	return hostTaskFromPayload(firstValue(resp, "task", "data", "result", ""))
+	return hostTaskFromPayload(resp["task"])
 }
 
 func hostGetTask(ctx context.Context, host sdk.Host, pluginID string, userID, taskID int64) (*hostTask, error) {
@@ -88,7 +87,7 @@ func hostGetTask(ctx context.Context, host sdk.Host, pluginID string, userID, ta
 	if err != nil {
 		return nil, err
 	}
-	return hostTaskFromPayload(firstValue(resp, "task", "data", "result", ""))
+	return hostTaskFromPayload(resp["task"])
 }
 
 type hostTaskListResponse struct {
@@ -111,18 +110,25 @@ func hostListTasks(ctx context.Context, host sdk.Host, pluginID string, userID i
 	if err != nil {
 		return nil, err
 	}
-	out := &hostTaskListResponse{Total: intFromAny(firstValue(resp, "total", "count"))}
-	if tasks, ok := firstValue(resp, "tasks", "items", "data").([]interface{}); ok {
-		for _, item := range tasks {
-			task, err := hostTaskFromPayload(item)
-			if err != nil {
-				return nil, err
-			}
-			out.Tasks = append(out.Tasks, task)
-		}
+	total, ok := resp["total"]
+	if !ok {
+		return nil, fmt.Errorf("tasks.list response missing total")
 	}
-	if out.Total == 0 {
-		out.Total = len(out.Tasks)
+	totalCount, err := taskTotalFromPayload(total)
+	if err != nil {
+		return nil, err
+	}
+	tasks, err := hostListFromPayload(resp, "tasks")
+	if err != nil {
+		return nil, err
+	}
+	out := &hostTaskListResponse{Total: totalCount, Tasks: make([]*hostTask, 0, len(tasks))}
+	for _, item := range tasks {
+		task, err := hostTaskFromPayload(item)
+		if err != nil {
+			return nil, err
+		}
+		out.Tasks = append(out.Tasks, task)
 	}
 	return out, nil
 }
@@ -144,10 +150,7 @@ func hostListPlatforms(ctx context.Context, host sdk.Host) ([]interface{}, error
 	if err != nil {
 		return nil, err
 	}
-	if items, ok := firstValue(resp, "platforms", "items", "data").([]interface{}); ok {
-		return items, nil
-	}
-	return nil, nil
+	return hostListFromPayload(resp, "platforms")
 }
 
 func hostListModels(ctx context.Context, host sdk.Host, platform, capability string) ([]interface{}, error) {
@@ -162,10 +165,7 @@ func hostListModels(ctx context.Context, host sdk.Host, platform, capability str
 	if err != nil {
 		return nil, err
 	}
-	if items, ok := firstValue(resp, "models", "items", "data").([]interface{}); ok {
-		return items, nil
-	}
-	return nil, nil
+	return hostListFromPayload(resp, "models")
 }
 
 func hostTaskFromPayload(value interface{}) (*hostTask, error) {
@@ -180,36 +180,28 @@ func hostTaskFromPayload(value interface{}) (*hostTask, error) {
 	if err := json.Unmarshal(body, &task); err != nil {
 		return nil, err
 	}
+	if task.ID <= 0 {
+		return nil, fmt.Errorf("task payload missing valid id")
+	}
 	return &task, nil
 }
 
-func firstValue(payload map[string]interface{}, keys ...string) interface{} {
-	if payload == nil {
-		return nil
+func hostListFromPayload(payload map[string]interface{}, key string) ([]interface{}, error) {
+	items, ok := payload[key].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("host response %s must be an array", key)
 	}
-	for _, key := range keys {
-		if key == "" {
-			return payload
-		}
-		if value, ok := payload[key]; ok {
-			return value
-		}
-	}
-	return nil
+	return items, nil
 }
 
-func intFromAny(value interface{}) int {
-	switch v := value.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	case json.Number:
-		n, _ := v.Int64()
-		return int(n)
-	default:
-		return 0
+func taskTotalFromPayload(value interface{}) (int, error) {
+	body, err := json.Marshal(value)
+	if err != nil {
+		return 0, err
 	}
+	var total int
+	if err := json.Unmarshal(body, &total); err != nil || value == nil || total < 0 {
+		return 0, fmt.Errorf("tasks.list total must be a non-negative integer")
+	}
+	return total, nil
 }

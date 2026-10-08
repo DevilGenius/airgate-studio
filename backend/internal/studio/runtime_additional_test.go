@@ -201,8 +201,8 @@ func TestHostInvokeAndTaskParsingAdditional(t *testing.T) {
 		},
 		errors: map[string]error{"transport": errors.New("transport failed")},
 	}
-	if resp, err := hostInvoke(context.Background(), host, "nil", nil); err != nil || len(resp) != 0 {
-		t.Fatalf("nil response = %#v, %v", resp, err)
+	if _, err := hostInvoke(context.Background(), host, "nil", nil); err == nil {
+		t.Fatal("nil host response should fail")
 	}
 	if resp, err := hostInvoke(context.Background(), host, "ok", nil); err != nil || resp["value"] != 1 {
 		t.Fatalf("ok response = %#v, %v", resp, err)
@@ -227,40 +227,28 @@ func TestHostInvokeAndTaskParsingAdditional(t *testing.T) {
 	if _, err := hostTaskFromPayload(map[string]interface{}{"bad": make(chan int)}); err == nil {
 		t.Fatalf("unmarshalable task payload should fail")
 	}
-	if got := firstValue(nil, "a"); got != nil {
-		t.Fatalf("nil firstValue = %v", got)
+	for _, value := range []interface{}{int(42), int64(42), float64(42), json.Number("42")} {
+		if got, err := taskTotalFromPayload(value); err != nil || got != 42 {
+			t.Fatalf("total(%v) = %d, %v", value, got, err)
+		}
 	}
-	payload := map[string]interface{}{"x": 1}
-	if got := firstValue(payload, ""); got == nil {
-		t.Fatalf("empty key should return payload")
-	}
-	if got := firstValue(map[string]interface{}{"b": 2}, "a", "b"); got != 2 {
-		t.Fatalf("firstValue = %v", got)
-	}
-	if got := intFromAny(int64(41)); got != 41 {
-		t.Fatalf("int64 intFromAny = %d", got)
-	}
-	if got := intFromAny(float64(40)); got != 40 {
-		t.Fatalf("float64 intFromAny = %d", got)
-	}
-	if got := intFromAny(json.Number("42")); got != 42 {
-		t.Fatalf("json.Number intFromAny = %d", got)
-	}
-	if got := intFromAny("nope"); got != 0 {
-		t.Fatalf("string intFromAny = %d", got)
+	for _, value := range []interface{}{nil, "42", -1, 1.5} {
+		if _, err := taskTotalFromPayload(value); err == nil {
+			t.Fatalf("invalid total %v should fail", value)
+		}
 	}
 }
 
 func TestHostTaskOperationsAdditional(t *testing.T) {
 	host := &studioFakeHost{responses: map[string]*sdk.HostInvokeResponse{
 		hostMethodTasksCreate: {Status: "ok", Payload: map[string]interface{}{"task": map[string]interface{}{"id": 1, "status": "pending"}}},
-		hostMethodTasksGet:    {Status: "ok", Payload: map[string]interface{}{"data": map[string]interface{}{"id": 2, "user_id": 9}}},
+		hostMethodTasksGet:    {Status: "ok", Payload: map[string]interface{}{"task": map[string]interface{}{"id": 2, "user_id": 9}}},
 		hostMethodTasksList: {Status: "ok", Payload: map[string]interface{}{
-			"items": []interface{}{
+			"tasks": []interface{}{
 				map[string]interface{}{"id": 3, "status": "done"},
 				map[string]interface{}{"id": 4, "status": "failed"},
 			},
-			"count": float64(12),
+			"total": float64(12),
 		}},
 		hostMethodTasksDelete:   {Status: "ok", Payload: map[string]interface{}{}},
 		hostMethodPlatformsList: {Status: "ok", Payload: map[string]interface{}{"platforms": []interface{}{"openai"}}},
@@ -292,23 +280,23 @@ func TestHostTaskOperationsAdditional(t *testing.T) {
 	host.responses[hostMethodTasksList] = &sdk.HostInvokeResponse{Status: "ok", Payload: map[string]interface{}{
 		"tasks": []interface{}{map[string]interface{}{"id": 5}},
 	}}
-	list, err = hostListTasks(context.Background(), host, "", 9, "", "", 20, 0)
-	if err != nil || list.Total != 1 {
-		t.Fatalf("list fallback total = %#v, %v", list, err)
+	if _, err := hostListTasks(context.Background(), host, "", 9, "", "", 20, 0); err == nil {
+		t.Fatal("missing total should fail")
 	}
 	host.responses[hostMethodTasksList] = &sdk.HostInvokeResponse{Status: "ok", Payload: map[string]interface{}{
 		"tasks": []interface{}{map[string]interface{}{"bad": make(chan int)}},
+		"total": 1,
 	}}
 	if _, err := hostListTasks(context.Background(), host, "", 9, "", "", 20, 0); err == nil {
 		t.Fatalf("bad task list item should fail")
 	}
 	host.responses[hostMethodPlatformsList] = &sdk.HostInvokeResponse{Status: "ok", Payload: map[string]interface{}{}}
-	if platforms, err := hostListPlatforms(context.Background(), host); err != nil || platforms != nil {
-		t.Fatalf("empty platforms = %#v, %v", platforms, err)
+	if _, err := hostListPlatforms(context.Background(), host); err == nil {
+		t.Fatal("missing platforms should fail")
 	}
 	host.responses[hostMethodModelsList] = &sdk.HostInvokeResponse{Status: "ok", Payload: map[string]interface{}{}}
-	if models, err := hostListModels(context.Background(), host, "", ""); err != nil || models != nil {
-		t.Fatalf("empty models = %#v, %v", models, err)
+	if _, err := hostListModels(context.Background(), host, "", ""); err == nil {
+		t.Fatal("missing models should fail")
 	}
 }
 
@@ -320,11 +308,11 @@ func TestRoutesAdditional(t *testing.T) {
 		hostMethodTasksDelete: {Status: "ok", Payload: map[string]interface{}{}},
 		hostMethodPlatformsList: {
 			Status:  "ok",
-			Payload: map[string]interface{}{"items": []interface{}{"openai"}},
+			Payload: map[string]interface{}{"platforms": []interface{}{"openai"}},
 		},
 		hostMethodModelsList: {
 			Status:  "ok",
-			Payload: map[string]interface{}{"data": []interface{}{map[string]interface{}{"id": "gpt-image-2"}}},
+			Payload: map[string]interface{}{"models": []interface{}{map[string]interface{}{"id": "gpt-image-2"}}},
 		},
 	}}
 	plugin := &StudioPlugin{host: host, logger: slog.New(slog.NewTextHandler(os.Stderr, nil))}

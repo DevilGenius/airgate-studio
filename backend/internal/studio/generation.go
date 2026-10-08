@@ -53,8 +53,9 @@ func resolveTaskType(kind, operation string) string {
 
 func buildTaskInput(req createGenerationTaskRequest) map[string]interface{} {
 	input := map[string]interface{}{
-		"prompt": req.Prompt,
-		"model":  req.Model,
+		"prompt":       req.Prompt,
+		"model":        req.Model,
+		"client_model": req.Model,
 	}
 	if req.GroupID > 0 {
 		input["group_id"] = req.GroupID
@@ -63,7 +64,7 @@ func buildTaskInput(req createGenerationTaskRequest) map[string]interface{} {
 		if key == "" || value == nil {
 			continue
 		}
-		if key == "model" || key == "prompt" {
+		if key == "model" || key == "client_model" || key == "prompt" {
 			continue
 		}
 		if s, ok := value.(string); ok && strings.TrimSpace(s) == "" {

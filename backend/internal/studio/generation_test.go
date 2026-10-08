@@ -2,6 +2,30 @@ package studio
 
 import "testing"
 
+func TestBuildTaskInputPreservesClientModel(t *testing.T) {
+	for _, operation := range []string{"generate", "edit", "inpaint"} {
+		for _, override := range []string{"", "other-model"} {
+			t.Run(operation+"/override="+override, func(t *testing.T) {
+				req := createGenerationTaskRequest{
+					Kind:      "image",
+					Operation: operation,
+					Model:     "client-image-alias",
+					Parameters: map[string]interface{}{
+						"client_model": override,
+						"model":        "other-display-model",
+					},
+				}
+				input := buildTaskInput(req)
+				for _, key := range []string{"client_model", "model"} {
+					if got := input[key]; got != req.Model {
+						t.Fatalf("%s = %v, want requested model %q", key, got, req.Model)
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestBuildTaskInputKeepsEditImagesAndMask(t *testing.T) {
 	req := createGenerationTaskRequest{
 		Kind:      "image",
