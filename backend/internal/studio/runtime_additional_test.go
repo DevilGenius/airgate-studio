@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
-	"time"
 
 	sdk "github.com/DevilGenius/airgate-sdk/sdkgo"
 )
@@ -34,42 +33,6 @@ func (h *studioFakeHost) Invoke(_ context.Context, req sdk.HostInvokeRequest) (*
 
 func (h *studioFakeHost) InvokeStream(context.Context, sdk.HostStreamRequest) (sdk.HostStream, error) {
 	return nil, errors.New("not implemented")
-}
-
-type studioFakeContext struct {
-	logger *slog.Logger
-	host   sdk.Host
-}
-
-func (c studioFakeContext) Logger() *slog.Logger { return c.logger }
-func (studioFakeContext) Config() sdk.PluginConfig {
-	return studioEmptyConfig{}
-}
-func (c studioFakeContext) Host() sdk.Host { return c.host }
-
-type studioEmptyConfig struct{}
-
-func (studioEmptyConfig) GetString(string) string          { return "" }
-func (studioEmptyConfig) GetInt(string) int                { return 0 }
-func (studioEmptyConfig) GetBool(string) bool              { return false }
-func (studioEmptyConfig) GetFloat64(string) float64        { return 0 }
-func (studioEmptyConfig) GetDuration(string) time.Duration { return 0 }
-func (studioEmptyConfig) GetAll() map[string]string        { return nil }
-
-type studioRouteRecorder struct {
-	routes map[string]http.HandlerFunc
-	prefix string
-}
-
-func (r *studioRouteRecorder) Handle(method, path string, handler http.HandlerFunc) {
-	if r.routes == nil {
-		r.routes = make(map[string]http.HandlerFunc)
-	}
-	r.routes[method+" "+r.prefix+path] = handler
-}
-
-func (r *studioRouteRecorder) Group(prefix string) sdk.RouteRegistrar {
-	return &studioRouteRecorder{routes: r.routes, prefix: r.prefix + prefix}
 }
 
 func TestNormalizeAndGenerationHelpersAdditional(t *testing.T) {
